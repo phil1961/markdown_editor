@@ -1,0 +1,16 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\.md]
+@="md_auto_file"
+
+[HKEY_CURRENT_USER\Software\Classes\md_auto_file]
+@="Markdown File"
+
+[HKEY_CURRENT_USER\Software\Classes\md_auto_file\shell\open\command]
+@="\"D:\\VSCodium\\VSCodium.exe\" \"%1\""
+
+[HKEY_CURRENT_USER\Software\Classes\md_auto_file\shell\MarkdownEditor]
+@="Open with Markdown Editor"
+
+[HKEY_CURRENT_USER\Software\Classes\md_auto_file\shell\MarkdownEditor\command]
+@="powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\Projects\\Markdown_Editor\\markdown-editor.ps1\" \"%1\""
