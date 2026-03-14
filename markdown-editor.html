@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown Editor v1.0.39</title>
+    <title>Markdown Editor v1.0.40</title>
     <!--
     ╔══════════════════════════════════════════════════════════════════════════════╗
-    ║                         MARKDOWN EDITOR v1.0.39                              ║
+    ║                         MARKDOWN EDITOR v1.0.40                              ║
     ╠══════════════════════════════════════════════════════════════════════════════╣
     ║  Author:      Phil                                                           ║
     ║  Created:     November 2024                                                  ║
-    ║  Version:     v1.0.39                                                        ║
+    ║  Version:     v1.0.40                                                        ║
     ║  Description: Professional dual-pane markdown editor with live preview       ║
     ║                                                                              ║
     ║  Features:                                                                   ║
@@ -26,6 +26,13 @@
     ║  - File menu with export options                                             ║
     ║  - View mode toggles (Editor/Preview/Both)                                   ║
     ║  - Table insertion                                                           ║
+    ║                                                                              ║
+    ║  v1.0.40 Changes:                                                            ║
+    ║  - Fixed header highlighting overlap (H1-H6 buttons)                         ║
+    ║  - Removed no-op pipe replacement in markdown parser                         ║
+    ║  - Wired up undo/redo history recording (was dead code)                      ║
+    ║  - Debounced preview updates for better typing performance                   ║
+    ║  - Fixed block format error on unwrapped preview text nodes                  ║
     ║                                                                              ║
     ║  v1.0.39 Changes:                                                            ║
     ║  - URL hash launch support: open any .md file via bat/context menu           ║
@@ -825,7 +832,7 @@
     <header class="header">
         <div class="header-left">
             <div class="header-title">
-                📝 Markdown Editor <span class="text-sm">v1.0.39</span>
+                📝 Markdown Editor <span class="text-sm">v1.0.40</span>
                 <span id="unsavedIndicator" class="unsaved-indicator" style="display: none;"></span>
             </div>
             
@@ -1165,7 +1172,7 @@
     
     <script>
         /**
-         * Markdown Editor v1.0.39 - Main Application Script
+         * Markdown Editor v1.0.40 - Main Application Script
          * Professional markdown editor with dual-pane editing and live preview
          */
         
@@ -1323,9 +1330,6 @@
                 
                 // Restore > for blockquotes at start of line
                 html = html.replace(/^&gt;/gm, '>');
-                
-                // Restore | for tables
-                html = html.replace(/\|/g, '|');
                 
                 // Code blocks (must be before other processing)
                 html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
@@ -1984,7 +1988,7 @@
                 editor.value = content.substring(0, start) + insertText + content.substring(editor.selectionEnd);
                 editor.selectionStart = editor.selectionEnd = start + insertText.length;
                 
-                EditorOps.updatePreview();
+                EditorOps.updatePreviewNow();
                 AppState.setModified(true);
                 this.closeModal();
                 
@@ -2035,7 +2039,7 @@
                     editor.selectionEnd = end + wrapper.length;
                 }
                 
-                this.updatePreview();
+                this.updatePreviewNow();
                 AppState.setModified(true);
                 Logger.info('Editor', `Applied ${format} formatting`);
             },
@@ -2141,7 +2145,7 @@
                 editor.selectionStart = lineStart;
                 editor.selectionEnd = lineStart + newContent.length;
                 
-                this.updatePreview();
+                this.updatePreviewNow();
                 AppState.setModified(true);
                 Logger.info('Editor', `Applied ${format} block formatting`);
             },
@@ -2158,7 +2162,7 @@
                 editor.value = content.substring(0, start) + linkMd + content.substring(editor.selectionEnd);
                 editor.selectionStart = editor.selectionEnd = start + linkMd.length;
                 
-                this.updatePreview();
+                this.updatePreviewNow();
                 AppState.setModified(true);
                 Logger.info('Editor', `Inserted link: ${url}`);
             },
@@ -2175,15 +2179,30 @@
                 editor.value = content.substring(0, start) + imgMd + content.substring(editor.selectionEnd);
                 editor.selectionStart = editor.selectionEnd = start + imgMd.length;
                 
-                this.updatePreview();
+                this.updatePreviewNow();
                 AppState.setModified(true);
                 Logger.info('Editor', `Inserted image: ${url}`);
             },
             
+            _previewTimer: null,
+
             /**
-             * Update preview pane from editor content
+             * Update preview pane from editor content (debounced)
              */
             updatePreview() {
+                if (this._previewTimer) clearTimeout(this._previewTimer);
+                this._previewTimer = setTimeout(() => {
+                    const markdown = DOM.editor.value;
+                    DOM.preview.innerHTML = MarkdownParser.parse(markdown);
+                    this.updateStatus();
+                }, 30);
+            },
+
+            /**
+             * Update preview immediately (for programmatic changes)
+             */
+            updatePreviewNow() {
+                if (this._previewTimer) clearTimeout(this._previewTimer);
                 const markdown = DOM.editor.value;
                 DOM.preview.innerHTML = MarkdownParser.parse(markdown);
                 this.updateStatus();
@@ -2352,6 +2371,34 @@
                         }
                     }
                     node = node.parentNode;
+                }
+                // If no block parent found, wrap the text node in a <p>
+                if (node === DOM.preview) {
+                    const selection = window.getSelection();
+                    if (selection.rangeCount) {
+                        const range = selection.getRangeAt(0);
+                        const p = document.createElement('p');
+                        // Find the top-level nodes in preview that intersect the selection
+                        const children = Array.from(DOM.preview.childNodes);
+                        let first = null, last = null;
+                        for (const child of children) {
+                            if (range.intersectsNode(child)) {
+                                if (!first) first = child;
+                                last = child;
+                            }
+                        }
+                        if (first) {
+                            DOM.preview.insertBefore(p, first);
+                            let current = p.nextSibling;
+                            while (current) {
+                                const next = current.nextSibling;
+                                p.appendChild(current);
+                                if (current === last) break;
+                                current = next;
+                            }
+                            return p;
+                        }
+                    }
                 }
                 return null;
             },
@@ -2523,13 +2570,13 @@
                     DOM.codeBtn.classList.add('active');
                 }
                 
-                // Check block formats
-                if (/^# /.test(line)) DOM.h1Btn.classList.add('active');
-                if (/^## /.test(line)) DOM.h2Btn.classList.add('active');
-                if (/^### /.test(line)) DOM.h3Btn.classList.add('active');
-                if (/^#### /.test(line)) DOM.h4Btn.classList.add('active');
-                if (/^##### /.test(line)) DOM.h5Btn.classList.add('active');
+                // Check block formats (most specific first to avoid overlap)
                 if (/^###### /.test(line)) DOM.h6Btn.classList.add('active');
+                else if (/^##### /.test(line)) DOM.h5Btn.classList.add('active');
+                else if (/^#### /.test(line)) DOM.h4Btn.classList.add('active');
+                else if (/^### /.test(line)) DOM.h3Btn.classList.add('active');
+                else if (/^## /.test(line)) DOM.h2Btn.classList.add('active');
+                else if (/^# /.test(line)) DOM.h1Btn.classList.add('active');
                 if (/^[-*+] /.test(line)) DOM.bulletBtn.classList.add('active');
                 if (/^\d+\. /.test(line)) DOM.numberBtn.classList.add('active');
                 if (/^>/.test(line)) DOM.quoteIncreaseBtn.classList.add('active');
@@ -2715,7 +2762,7 @@
                     }
                     
                     DOM.editor.value = content;
-                    EditorOps.updatePreview();
+                    EditorOps.updatePreviewNow();
                     AppState.currentFile = file.name;
                     AppState.setModified(false);
                     this.updateFileNameDisplay();
@@ -3120,6 +3167,7 @@ ${bodyContent}
             // Editor input
             DOM.editor.addEventListener('input', () => {
                 EditorOps.updatePreview();
+                AppState.addToHistory(DOM.editor.value);
                 AppState.setModified(true);
             });
             
@@ -3340,12 +3388,12 @@ ${bodyContent}
 
                 // Populate editor
                 DOM.editor.value = content;
-                EditorOps.updatePreview();
+                EditorOps.updatePreviewNow();
                 AppState.currentFile = filename;
                 AppState.setModified(false);
                 FileOps.updateFileNameDisplay();
                 DOM.statusLeft.textContent = `Opened: ${filename}`;
-                document.title = `Markdown Editor v1.0.39 - ${filename}`;
+                document.title = `Markdown Editor v1.0.40 - ${filename}`;
 
                 Logger.success('App', `Loaded from bat payload: ${filename}`);
                 return true;
@@ -3356,7 +3404,7 @@ ${bodyContent}
         }
 
         function init() {
-            Logger.info('App', 'MARKDOWN EDITOR v1.0.39 - Initializing Application');
+            Logger.info('App', 'MARKDOWN EDITOR v1.0.40 - Initializing Application');
             
             // Set up event listeners
             setupEventListeners();
@@ -3370,9 +3418,12 @@ ${bodyContent}
             // Load file from URL hash if launched via bat/context menu
             const loadedFromHash = loadFromPayload();
 
+            // Seed undo history with initial content
+            AppState.addToHistory(DOM.editor.value);
+
             // Initial status update
             EditorOps.updateStatus();
-            
+
             // Set focus to editor
             DOM.editor.focus();
             AppState.activePane = 'editor';

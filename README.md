@@ -1,4 +1,4 @@
-# Markdown Editor v1.0.39
+# Markdown Editor v1.0.40
 
 A professional dual-pane markdown editor that runs entirely in the browser as a single HTML file. Features a live preview pane, rich formatting toolbar, and full Windows File Explorer integration for opening `.md` files directly from the right-click context menu or DOS command line.
 
@@ -106,6 +106,7 @@ This approach is necessary because browsers block URL fragment (`#hash`) passing
 
 | Version | Changes |
 |---------|---------|
+| v1.0.40 | Fixed header highlighting, wired up undo history, debounced preview, fixed block format on unwrapped text |
 | v1.0.39 | DOS and right-click context menu file launch via ps1 injection |
 | v1.0.38 | Fixed duplicate scrollbar; fixed scroll sync element targeting |
 | v1.0.37 | Added view mode toggle (Editor/Preview/Both); table insertion |
