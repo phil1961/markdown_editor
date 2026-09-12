@@ -369,6 +369,21 @@ G("Doc model — quote indent nests, does not toggle off");
         ">- still unwraps one level when the landing paragraph is in the selection", Doc.html());
 }
 
+G("Doc model — numbering inside a quote keeps one item per line");
+{
+    Doc.load("a\n\nb\n\nc");
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.indentQuote();
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.toggleBlock("ol");
+    const md = Doc.toMarkdown();
+    const html = Doc.html();
+    ok(!/1\.\s*a\s+b\s+c/.test(md) && /1\.\s*a/.test(md) && /2\.\s*b/.test(md) && /3\.\s*c/.test(md),
+        "quoted a, b, c number as 1. 2. 3. not '1. a b c'", md);
+    ok((html.match(/<li>/g) || []).length === 3, "three list items", html);
+    ok((html.match(/<blockquote>/g) || []).length === 1, "still inside one quote", html);
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

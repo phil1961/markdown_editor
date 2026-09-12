@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.6",
+  version:  "1.2.7",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -24,6 +24,8 @@ const BUILD = {
      "Enter at the end of a quote (or on an empty quoted line) leaves the quote."],
     ["Could not click below the last line of the preview to put the caret there",
      "After a quote, heading, or list there is a landing paragraph. Clicks in "
-     + "the empty space of the pane go there. It is not written into the file."]
+     + "the empty space of the pane go there. It is not written into the file."],
+    ["Numbering indented lines collapsed them to '1. a b c'",
+     "Lists apply to the selected lines inside a quote, one item per line."]
   ]
 };

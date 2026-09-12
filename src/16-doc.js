@@ -628,29 +628,44 @@ const Doc = (() => {
         return out;
     }
 
-    function convertBlockToP(i) {
-        const block = state.blocks[i];
+    function convertBlockToPIn(blocks, i) {
+        const block = blocks[i];
         if (!block || block.type === "p") return;
         if (block.type === "quote" && block.blocks && block.blocks.length) {
-            state.blocks.splice(i, 1, ...block.blocks);
+            blocks.splice(i, 1, ...block.blocks);
             return;
         }
         if (block.items) {
             const paras = (block.items.length ? block.items : [[]]).map(it => ({
                 type: "p", inlines: mergeInlines(it)
             }));
-            state.blocks.splice(i, 1, ...paras);
+            blocks.splice(i, 1, ...paras);
             return;
         }
         if (block.type === "pre") {
-            state.blocks[i] = { type: "p", inlines: parseInlines(block.text || "") };
+            blocks[i] = { type: "p", inlines: parseInlines(block.text || "") };
             return;
         }
         if (block.inlines) {
             block.type = "p";
             return;
         }
-        state.blocks[i] = { type: "p", inlines: [] };
+        blocks[i] = { type: "p", inlines: [] };
+    }
+    function convertBlockToP(i) {
+        convertBlockToPIn(state.blocks, i);
+    }
+    function itemsFromBlock(block) {
+        if (!block) return [[]];
+        if (block.items) return block.items.slice();
+        if (block.inlines) return [block.inlines];
+        if (block.blocks && block.blocks.length) {
+            const items = [];
+            block.blocks.forEach(inner => items.push(...itemsFromBlock(inner)));
+            return items.length ? items : [[]];
+        }
+        const t = blockText(block);
+        return t ? [[{ text: t, marks: [] }]] : [[]];
     }
 
     function toggleBlock(type) {
@@ -665,20 +680,20 @@ const Doc = (() => {
         }
 
         if (type === "ul" || type === "ol") {
-            if (indices.every(i => state.blocks[i].type === type)) {
-                for (let k = indices.length - 1; k >= 0; k--) convertBlockToP(indices[k]);
+            const t = quoteTarget();
+            if (!t.indices.length) return;
+            const idx = t.indices.slice().sort((a, b) => a - b);
+            if (idx.every(i => t.blocks[i].type === type)) {
+                for (let k = idx.length - 1; k >= 0; k--) convertBlockToPIn(t.blocks, idx[k]);
+                ensureTrail();
                 return;
             }
             const items = [];
-            for (const i of indices) {
-                const block = state.blocks[i];
-                if (block.items) items.push(...block.items);
-                else if (block.inlines) items.push(block.inlines);
-                else items.push([{ text: blockText(block), marks: [] }]);
-            }
+            for (const i of idx) items.push(...itemsFromBlock(t.blocks[i]));
             if (!items.length) items.push([]);
-            const first = indices[0], last = indices[indices.length - 1];
-            state.blocks.splice(first, last - first + 1, { type, items });
+            const first = idx[0], last = idx[idx.length - 1];
+            t.blocks.splice(first, last - first + 1, { type, items });
+            ensureTrail();
             return;
         }
 

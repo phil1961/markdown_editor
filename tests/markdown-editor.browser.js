@@ -586,6 +586,24 @@ const launchArgs = [
     })`);
     ok(/out/.test(landed.md) && !landed.inQuote, "a click below the last line types outside the quote", JSON.stringify(landed));
 
+    G("QC: numbering indented lines keeps one item per line");
+    await loadMd("a\n\nb\n\nc");
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#quoteIncreaseBtn");
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await click("#numberBtn");
+    const qn = await evalJs(`({
+      md: document.getElementById("editor").value,
+      html: document.getElementById("preview").innerHTML,
+      lis: [...document.querySelectorAll("#preview li")].map(el => el.textContent.trim()),
+      ols: document.querySelectorAll("#preview ol").length,
+      bq: !!document.querySelector("#preview blockquote")
+    })`);
+    ok(qn.lis.join("|") === "a|b|c", "three numbered items a, b, c — not one item 'a b c'", JSON.stringify(qn));
+    ok(qn.ols === 1 && qn.bq, "one list, still quoted", qn.html);
+    ok(/1\.\s*a/.test(qn.md) && /2\.\s*b/.test(qn.md) && /3\.\s*c/.test(qn.md)
+      && !/1\.\s*a\s+b\s+c/.test(qn.md), "raw is 1. a / 2. b / 3. c", qn.md);
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);
