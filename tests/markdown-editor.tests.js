@@ -258,6 +258,38 @@ G("Doc model — pasted numbered lists stay one list");
     ok((html.match(/<li>/g) || []).length === 3, "export HTML has three <li>", html);
 }
 
+G("Doc model — quote indent nests, does not toggle off");
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 3);
+    Doc.indentQuote();
+    ok((Doc.html().match(/<blockquote>/g) || []).length === 1, "first >+ wraps once", Doc.html());
+    ok(/^>\s*abc/m.test(Doc.toMarkdown()), "raw has one >", Doc.toMarkdown());
+    Doc.indentQuote();
+    ok((Doc.html().match(/<blockquote>/g) || []).length === 2, "second >+ nests, does not unwrap", Doc.html());
+    Doc.indentQuote();
+    ok((Doc.html().match(/<blockquote>/g) || []).length === 3, "third >+ is a triple indent", Doc.html());
+    Doc.outdentQuote();
+    ok((Doc.html().match(/<blockquote>/g) || []).length === 2, ">- removes one level", Doc.html());
+    Doc.outdentQuote();
+    ok((Doc.html().match(/<blockquote>/g) || []).length === 1, ">- again leaves one level", Doc.html());
+    Doc.outdentQuote();
+    ok((Doc.html().match(/<blockquote>/g) || []).length === 0, ">- on the last level unwraps", Doc.html());
+    ok(!/^>/m.test(Doc.toMarkdown().trim()), "raw has no quote marker", Doc.toMarkdown());
+}
+
+{
+    Doc.load("abc\n\none");
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.indentQuote();
+    Doc.indentQuote();
+    const html = Doc.html();
+    ok((html.match(/<blockquote>/g) || []).length === 2, "two selected paragraphs nest together", html);
+    Doc.setSelection(3, 3);
+    Doc.insertText("!");
+    ok(/abc!/.test(Doc.toMarkdown()), "typing still works inside a nested quote", Doc.toMarkdown());
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

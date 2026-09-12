@@ -497,6 +497,25 @@ const launchArgs = [
     ok(ones.ols === 1 && ones.lis.join("|") === "abc|one|two", "paste of 1. 1. 1. renders as one list", ones.html);
     ok(/^1\.\s*abc\n2\.\s*one\n3\.\s*two/.test(ones.md), "those items are numbered 1. 2. 3. in raw", ones.md);
 
+    G("QC: quote-increase nests instead of toggling off");
+    await bootPreview("abc");
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#quoteIncreaseBtn");
+    const q1 = await evalJs("({ n: document.querySelectorAll('#preview blockquote').length, md: document.getElementById('editor').value, html: document.getElementById('preview').innerHTML })");
+    ok(q1.n === 1, "first >+ wraps in a blockquote", q1.html);
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await click("#quoteIncreaseBtn");
+    const q2 = await evalJs("({ n: document.querySelectorAll('#preview blockquote').length, md: document.getElementById('editor').value, html: document.getElementById('preview').innerHTML })");
+    ok(q2.n === 2, "second >+ nests a second blockquote, does not unwrap", q2.html + " | " + q2.md);
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await click("#quoteIncreaseBtn");
+    const q3 = await evalJs("document.querySelectorAll('#preview blockquote').length");
+    ok(q3 === 3, "third >+ is a triple indent", String(q3));
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await click("#quoteDecreaseBtn");
+    const qDown = await evalJs("document.querySelectorAll('#preview blockquote').length");
+    ok(qDown === 2, ">- removes one indent level", String(qDown));
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

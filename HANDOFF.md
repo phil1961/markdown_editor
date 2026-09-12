@@ -83,4 +83,6 @@ Blank lines between numbered items (a paste of `1.\n\n2.\n\n3.` or `1.\n\n1.\n\n
 stay one list. HTML `<ol>` restarts at 1 for every list, so splitting items
 across lists is how every marker becomes `1.`
 
+`>+` adds a quote level each click; `>-` removes one. It is not a toggle.
+
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.2",
+  version:  "1.2.3",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -15,6 +15,8 @@ const BUILD = {
     ["Pasted numbered items with blank lines became one <ol> each, so every "
      + "marker showed as 1.",
      "Blank lines no longer break a list. Adjacent numbered items are one "
-     + "list, 1. 2. 3."]
+     + "list, 1. 2. 3."],
+    ["A second click on quote-increase removed the indent instead of nesting",
+     ">+ adds a quote level each time. >- removes one level."]
   ]
 };

@@ -1105,9 +1105,9 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.2",
+  version:  "1.2.3",
   released: "12 September 2026",
-  compiled: "120520Z SEP 26",
+  compiled: "120529Z SEP 26",
   corrections: [
     ["Raw and preview were two live copies of the note",
      "A document model is now the source of truth. Both panes are views. "
@@ -1119,7 +1119,9 @@ const BUILD = {
     ["Pasted numbered items with blank lines became one <ol> each, so every "
      + "marker showed as 1.",
      "Blank lines no longer break a list. Adjacent numbered items are one "
-     + "list, 1. 2. 3."]
+     + "list, 1. 2. 3."],
+    ["A second click on quote-increase removed the indent instead of nesting",
+     ">+ adds a quote level each time. >- removes one level."]
   ]
 };
 
@@ -1279,6 +1281,35 @@ const Doc = (() => {
         const last = items.length - 1;
         return { item: last, offset: inlinesText(items[last]).length };
     }
+    function innerAt(blocks, offset) {
+        const list = blocks || [];
+        if (!list.length) return { i: 0, offset: 0, block: null };
+        let o = 0;
+        for (let k = 0; k < list.length; k++) {
+            const n = blockText(list[k]).length;
+            if (offset <= o + n || k === list.length - 1) {
+                return { i: k, offset: clamp(offset - o, 0, n), block: list[k] };
+            }
+            o += n + 1;
+        }
+        const last = list.length - 1;
+        return { i: last, offset: blockText(list[last]).length, block: list[last] };
+    }
+    function containerAt(pos) {
+        const loc = locAt(state, pos);
+        let blocks = state.blocks;
+        let i = loc.block;
+        let offset = loc.offset;
+        let block = blocks[i];
+        while (block && block.type === "quote" && block.blocks && block.blocks.length) {
+            const inner = innerAt(block.blocks, offset);
+            blocks = block.blocks;
+            i = inner.i;
+            offset = inner.offset;
+            block = blocks[i];
+        }
+        return { blocks, i, offset, block };
+    }
     function splitInlinesAt(ins, offset) {
         const split = splitInlines(ins, offset);
         const left = [], right = [];
@@ -1414,8 +1445,8 @@ const Doc = (() => {
             case "ul": return (b.items || []).map(it => "- " + serInlines(it)).join("\n");
             case "ol": return (b.items || []).map((it, i) => (i + 1) + ". " + serInlines(it)).join("\n");
             case "quote": {
-                const inner = (b.blocks || []).map(serBlock).join("\n");
-                return inner.split("\n").map(l => "> " + l).join("\n");
+                const inner = (b.blocks || []).map(serBlock).join("\n\n");
+                return inner.split("\n").map(l => l === "" ? ">" : "> " + l).join("\n");
             }
             case "table": {
                 const rows = b.rows || [];
@@ -1769,6 +1800,11 @@ const Doc = (() => {
         if (!hit.length) return;
         const indices = hit.map(b => b.i).sort((a, b) => a - b);
 
+        if (type === "quote") {
+            indentQuote();
+            return;
+        }
+
         if (type === "ul" || type === "ol") {
             if (indices.every(i => state.blocks[i].type === type)) {
                 for (let k = indices.length - 1; k >= 0; k--) convertBlockToP(indices[k]);
@@ -1793,12 +1829,7 @@ const Doc = (() => {
         }
         indices.forEach(i => {
             const block = state.blocks[i];
-            if (type === "quote") {
-                state.blocks[i] = { type: "quote", blocks: [{
-                    type: block.type, inlines: block.inlines, items: block.items,
-                    text: block.text, rows: block.rows, lang: block.lang
-                }] };
-            } else if (type === "pre") {
+            if (type === "pre") {
                 state.blocks[i] = { type: "pre", lang: "", text: blockText(block) };
             } else if (block.inlines) {
                 block.type = type;
@@ -1806,6 +1837,24 @@ const Doc = (() => {
                 state.blocks[i] = { type, inlines: parseInlines(blockText(block)) };
             }
         });
+    }
+
+    function indentQuote() {
+        const hit = blocksOverlapping(sel.from, sel.to);
+        if (!hit.length) return;
+        const indices = hit.map(b => b.i).sort((a, b) => a - b);
+        const first = indices[0], last = indices[indices.length - 1];
+        const inner = state.blocks.slice(first, last + 1);
+        state.blocks.splice(first, last - first + 1, { type: "quote", blocks: inner });
+    }
+
+    function outdentQuote() {
+        const hit = blocksOverlapping(sel.from, sel.to);
+        if (!hit.length) return;
+        const indices = hit.map(b => b.i).sort((a, b) => b - a);
+        for (const i of indices) {
+            if (state.blocks[i] && state.blocks[i].type === "quote") convertBlockToP(i);
+        }
     }
 
     function runAt(pos) {
@@ -1857,14 +1906,13 @@ const Doc = (() => {
         return set;
     }
     function runContaining(pos) {
-        const loc = locAt(state, pos);
-        const ix = index(state)[loc.block];
-        if (!ix) return null;
-        const block = state.blocks[loc.block];
+        const c = containerAt(pos);
+        const block = c.block;
+        if (!block) return null;
         let ins = block.inlines;
-        let offset = loc.offset;
+        let offset = c.offset;
         if (block.items) {
-            const it = itemAt(block, loc.offset);
+            const it = itemAt(block, c.offset);
             ins = block.items[it.item];
             offset = it.offset;
         }
@@ -1899,6 +1947,7 @@ const Doc = (() => {
             const block = state.blocks[b.i];
             if (block.inlines) block.inlines = spliceInlines(block.inlines, lo, hi, "");
             else if (block.items) block.items = deleteInItems(block.items, lo, hi);
+            else if (block.blocks) deleteInQuoted(block, lo, hi);
             else if (block.text != null) block.text = (block.text || "").slice(0, lo) + (block.text || "").slice(hi);
         }
         mergeEmpty();
@@ -1937,7 +1986,35 @@ const Doc = (() => {
         if (!state.blocks.length) state = empty();
     }
 
+    function deleteInQuoted(block, lo, hi) {
+        const blocks = block.blocks || [];
+        let pos = 0;
+        const ix = blocks.map((b, i) => {
+            const n = blockText(b).length;
+            const rec = { from: pos, to: pos + n, i };
+            pos += n + (i < blocks.length - 1 ? 1 : 0);
+            return rec;
+        });
+        for (let k = ix.length - 1; k >= 0; k--) {
+            const b = ix[k];
+            if (hi <= b.from || lo >= b.to) continue;
+            const rlo = Math.max(0, lo - b.from);
+            const rhi = Math.min(b.to - b.from, hi - b.from);
+            const inner = blocks[b.i];
+            if (inner.inlines) inner.inlines = spliceInlines(inner.inlines, rlo, rhi, "");
+            else if (inner.items) inner.items = deleteInItems(inner.items, rlo, rhi);
+            else if (inner.blocks) deleteInQuoted(inner, rlo, rhi);
+            else if (inner.text != null) inner.text = (inner.text || "").slice(0, rlo) + (inner.text || "").slice(rhi);
+        }
+    }
+
     function insertAt(block, offset, text, marks) {
+        if (!block) return;
+        if (block.type === "quote" && block.blocks) {
+            const inner = innerAt(block.blocks, offset);
+            insertAt(inner.block, inner.offset, text, marks);
+            return;
+        }
         if (block.items) {
             const it = itemAt(block, offset);
             block.items[it.item] = spliceInlines(block.items[it.item], it.offset, it.offset, text, marks);
@@ -2022,12 +2099,24 @@ const Doc = (() => {
 
     function splitBlock() {
         const { from } = sel;
-        const loc = locAt(state, from);
-        const block = state.blocks[loc.block];
+        const c = containerAt(from);
+        const block = c.block;
+        if (!block) return;
         if (block.items) {
-            const it = itemAt(block, loc.offset);
+            const it = itemAt(block, c.offset);
             if (!inlinesText(block.items[it.item])) {
-                exitListAt(loc.block, it.item);
+                if (c.blocks === state.blocks) {
+                    exitListAt(c.i, it.item);
+                } else {
+                    const before = block.items.slice(0, it.item);
+                    const after = block.items.slice(it.item + 1);
+                    const replacement = [];
+                    if (before.length) replacement.push({ type: block.type, items: before });
+                    replacement.push({ type: "p", inlines: [] });
+                    if (after.length) replacement.push({ type: block.type, items: after });
+                    c.blocks.splice(c.i, 1, ...replacement);
+                    setSelection(from, from);
+                }
                 return;
             }
             const { left, right } = splitInlinesAt(block.items[it.item], it.offset);
@@ -2037,14 +2126,13 @@ const Doc = (() => {
             return;
         }
         if (!block.inlines) {
-            state.blocks.splice(loc.block + 1, 0, { type: "p", inlines: [] });
+            c.blocks.splice(c.i + 1, 0, { type: "p", inlines: [] });
             setSelection(from + 1, from + 1);
             return;
         }
-        const { left, right } = splitInlinesAt(block.inlines, loc.offset);
+        const { left, right } = splitInlinesAt(block.inlines, c.offset);
         block.inlines = left;
-        const newType = /^h[1-6]$/.test(block.type) ? "p" : "p";
-        state.blocks.splice(loc.block + 1, 0, { type: newType, inlines: right });
+        c.blocks.splice(c.i + 1, 0, { type: "p", inlines: right });
         setSelection(from + 1, from + 1);
     }
 
@@ -2052,12 +2140,11 @@ const Doc = (() => {
         let { from, to } = sel;
         if (from !== to) { setSelection(deleteRange(from, to)); return; }
         if (from <= 0) return;
-        const loc = locAt(state, from);
-        const block = state.blocks[loc.block];
-        if (block.items) {
-            const it = itemAt(block, loc.offset);
+        const c = containerAt(from);
+        const block = c.block;
+        if (block && block.items) {
+            const it = itemAt(block, c.offset);
             if (it.offset === 0 && it.item > 0) {
-                const prevLen = inlinesText(block.items[it.item - 1]).length;
                 block.items[it.item - 1] = mergeInlines(block.items[it.item - 1].concat(block.items[it.item]));
                 block.items.splice(it.item, 1);
                 setSelection(from - 1);
@@ -2067,29 +2154,27 @@ const Doc = (() => {
                 const first = block.items[0];
                 const rest = block.items.slice(1);
                 const para = { type: "p", inlines: first };
-                if (rest.length) state.blocks.splice(loc.block, 1, para, { type: block.type, items: rest });
-                else state.blocks[loc.block] = para;
-                setSelection(index(state)[loc.block].from);
+                if (rest.length) c.blocks.splice(c.i, 1, para, { type: block.type, items: rest });
+                else c.blocks[c.i] = para;
+                setSelection(from);
                 return;
             }
         }
-        if (loc.offset === 0 && loc.block > 0) {
-            const prev = state.blocks[loc.block - 1];
-            const cur = state.blocks[loc.block];
-            const joinAt = blockText(prev).length;
-            if (prev.inlines && cur.inlines) {
+        if (c.offset === 0 && c.i > 0) {
+            const prev = c.blocks[c.i - 1];
+            const cur = block;
+            if (prev && prev.inlines && cur && cur.inlines) {
                 prev.inlines = mergeInlines(prev.inlines.concat(cur.inlines));
-                state.blocks.splice(loc.block, 1);
-                setSelection(index(state)[loc.block - 1].from + joinAt);
-            } else if (prev.items && cur.inlines) {
-                prev.items.push(cur.inlines);
-                state.blocks.splice(loc.block, 1);
+                c.blocks.splice(c.i, 1);
                 setSelection(from - 1);
-            } else {
-                deleteRange(from - 1, from);
-                setSelection(from - 1);
+                return;
             }
-            return;
+            if (prev && prev.items && cur && cur.inlines) {
+                prev.items.push(cur.inlines);
+                c.blocks.splice(c.i, 1);
+                setSelection(from - 1);
+                return;
+            }
         }
         deleteRange(from - 1, from);
         setSelection(from - 1);
@@ -2182,7 +2267,7 @@ const Doc = (() => {
         empty, parse, load, get,
         toMarkdown, html, previewHTML,
         selection, setSelection,
-        toggleMark, toggleBlock,
+        toggleMark, toggleBlock, indentQuote, outdentQuote,
         insertText, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
         marksAt, blockTypeAt, totalLen: () => totalLen(state),
         readPreviewSelection, restorePreviewSelection,
@@ -2808,8 +2893,8 @@ function applyDocFormat(format) {
     else if (/^h[1-6]$/.test(format)) Doc.toggleBlock(format);
     else if (format === "bullet") Doc.toggleBlock("ul");
     else if (format === "number") Doc.toggleBlock("ol");
-    else if (format === "quoteIncrease") Doc.toggleBlock("quote");
-    else if (format === "quoteDecrease") Doc.toggleBlock("p");
+    else if (format === "quoteIncrease") Doc.indentQuote();
+    else if (format === "quoteDecrease") Doc.outdentQuote();
     else if (format === "hr") {
         const md = Doc.toMarkdown();
         Doc.load(md + (md && !md.endsWith("\n") ? "\n" : "") + "\n---\n");

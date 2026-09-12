@@ -79,8 +79,8 @@ function applyDocFormat(format) {
     else if (/^h[1-6]$/.test(format)) Doc.toggleBlock(format);
     else if (format === "bullet") Doc.toggleBlock("ul");
     else if (format === "number") Doc.toggleBlock("ol");
-    else if (format === "quoteIncrease") Doc.toggleBlock("quote");
-    else if (format === "quoteDecrease") Doc.toggleBlock("p");
+    else if (format === "quoteIncrease") Doc.indentQuote();
+    else if (format === "quoteDecrease") Doc.outdentQuote();
     else if (format === "hr") {
         const md = Doc.toMarkdown();
         Doc.load(md + (md && !md.endsWith("\n") ? "\n" : "") + "\n---\n");
