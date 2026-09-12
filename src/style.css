@@ -396,6 +396,7 @@
             border-radius: 8px;
             overflow-x: auto;
             margin: 1em 0;
+            white-space: pre;
         }
         
         #preview pre code {

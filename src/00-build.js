@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.7",
+  version:  "1.2.8",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -26,6 +26,8 @@ const BUILD = {
      "After a quote, heading, or list there is a landing paragraph. Clicks in "
      + "the empty space of the pane go there. It is not written into the file."],
     ["Numbering indented lines collapsed them to '1. a b c'",
-     "Lists apply to the selected lines inside a quote, one item per line."]
+     "Lists apply to the selected lines inside a quote, one item per line."],
+    ["Enter in a code block created a paragraph outside the fence",
+     "Enter inserts a newline inside the code. Click below the box to leave it."]
   ]
 };

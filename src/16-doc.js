@@ -463,9 +463,11 @@ const Doc = (() => {
             case "hr": return "<hr>";
             case "pre": {
                 const lang = String(b.lang || "").replace(/[^a-zA-Z0-9_-]/g, "");
+                const body = b.text || "";
                 const inner = mapped
-                    ? "<span data-from=\"" + from + "\" data-to=\"" + (from + (b.text || "").length) + "\">" + esc(b.text || "") + "</span>"
-                    : esc(b.text || "");
+                    ? "<span data-from=\"" + from + "\" data-to=\"" + (from + body.length) + "\">"
+                        + (body ? esc(body) : "<br>") + "</span>"
+                    : esc(body);
                 return "<pre><code class=\"language-" + lang + "\">" + inner + "</code></pre>";
             }
             case "ul":
@@ -643,7 +645,9 @@ const Doc = (() => {
             return;
         }
         if (block.type === "pre") {
-            blocks[i] = { type: "p", inlines: parseInlines(block.text || "") };
+            const lines = String(block.text || "").split("\n");
+            const paras = lines.map(l => ({ type: "p", inlines: l ? [{ text: l, marks: [] }] : [] }));
+            blocks.splice(i, 1, ...(paras.length ? paras : [{ type: "p", inlines: [] }]));
             return;
         }
         if (block.inlines) {
@@ -697,15 +701,28 @@ const Doc = (() => {
             return;
         }
 
+        if (type === "pre") {
+            const t = quoteTarget();
+            if (!t.indices.length) return;
+            const idx = t.indices.slice().sort((a, b) => a - b);
+            if (idx.every(i => t.blocks[i].type === "pre")) {
+                for (let k = idx.length - 1; k >= 0; k--) convertBlockToPIn(t.blocks, idx[k]);
+                ensureTrail();
+                return;
+            }
+            const text = idx.map(i => blockText(t.blocks[i])).join("\n");
+            t.blocks.splice(idx[0], idx[idx.length - 1] - idx[0] + 1, { type: "pre", lang: "", text });
+            ensureTrail();
+            return;
+        }
+
         if (type === "p" || indices.every(i => state.blocks[i].type === type)) {
             for (let k = indices.length - 1; k >= 0; k--) convertBlockToP(indices[k]);
             return;
         }
         indices.forEach(i => {
             const block = state.blocks[i];
-            if (type === "pre") {
-                state.blocks[i] = { type: "pre", lang: "", text: blockText(block) };
-            } else if (block.inlines) {
+            if (block.inlines) {
                 block.type = type;
             } else {
                 state.blocks[i] = { type, inlines: parseInlines(blockText(block)) };
@@ -978,6 +995,13 @@ const Doc = (() => {
     function insertText(text) {
         let { from, to } = sel;
         if (from !== to) from = deleteRange(from, to);
+        const c0 = containerAt(from);
+        if (c0.block && c0.block.type === "pre") {
+            const t = String(text || "");
+            insertAt(c0.block, c0.offset, t, []);
+            setSelection(from + t.length, from + t.length);
+            return;
+        }
         const parts = String(text || "").split("\n");
         const leftMarks = (runContaining(from > 0 ? from - 1 : from) || {}).marks || [];
         const loc = locAt(state, from);
@@ -1048,6 +1072,13 @@ const Doc = (() => {
         const c = containerAt(from);
         const block = c.block;
         if (!block) return;
+        if (block.type === "pre") {
+            const t = block.text || "";
+            const o = clamp(c.offset, 0, t.length);
+            block.text = t.slice(0, o) + "\n" + t.slice(o);
+            setSelection(from + 1, from + 1);
+            return;
+        }
         if (block.items) {
             const it = itemAt(block, c.offset);
             if (!inlinesText(block.items[it.item])) {

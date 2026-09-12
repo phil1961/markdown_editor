@@ -604,6 +604,28 @@ const launchArgs = [
     ok(/1\.\s*a/.test(qn.md) && /2\.\s*b/.test(qn.md) && /3\.\s*c/.test(qn.md)
       && !/1\.\s*a\s+b\s+c/.test(qn.md), "raw is 1. a / 2. b / 3. c", qn.md);
 
+    G("QC: Enter inside a code block stays in the fence");
+    await loadMd("hello");
+    await evalJs("(() => { Doc.setSelection(0, 5); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#codeBlockBtn");
+    await evalJs("(() => { Doc.setSelection(5, 5); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "char", text: "\r", unmodifiedText: "\r", windowsVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await frames();
+    await cdp.send("Input.insertText", { text: "world" }, S);
+    await frames();
+    const code = await evalJs(`({
+      md: document.getElementById("editor").value,
+      html: document.getElementById("preview").innerHTML,
+      preText: (document.querySelector("#preview pre") || {}).textContent || "",
+      preCount: document.querySelectorAll("#preview pre").length
+    })`);
+    ok(code.preCount === 1 && /hello/.test(code.preText) && /world/.test(code.preText),
+      "both lines are inside the same <pre>", JSON.stringify(code));
+    ok(/```[\s\S]*hello\nworld/.test(code.md) && !/^world/m.test(code.md.replace(/```[\s\S]*?```/, "")),
+      "raw fence contains hello and world", code.md);
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

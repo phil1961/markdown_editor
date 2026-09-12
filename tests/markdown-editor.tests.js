@@ -384,6 +384,29 @@ G("Doc model — numbering inside a quote keeps one item per line");
     ok((html.match(/<blockquote>/g) || []).length === 1, "still inside one quote", html);
 }
 
+G("Doc model — Enter stays inside a code block");
+{
+    Doc.load("hello");
+    Doc.setSelection(0, 5);
+    Doc.toggleBlock("pre");
+    ok(Doc.get().blocks[0].type === "pre", "code block wraps the line");
+    Doc.setSelection(5, 5);
+    Doc.splitBlock();
+    ok(Doc.get().blocks[0].type === "pre" && Doc.get().blocks[0].text === "hello\n",
+        "Enter at the end of the code stays in the fence", JSON.stringify(Doc.get().blocks[0]));
+    Doc.insertText("world");
+    ok(Doc.get().blocks[0].text === "hello\nworld", "typing after Enter is still in the code", Doc.get().blocks[0].text);
+    ok(/```[\s\S]*hello\nworld/.test(Doc.toMarkdown()), "markdown fence contains both lines", Doc.toMarkdown());
+}
+
+{
+    Doc.load("a\n\nb");
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.toggleBlock("pre");
+    ok(Doc.get().blocks[0].type === "pre" && Doc.get().blocks[0].text === "a\nb",
+        "several paragraphs become one fence with newlines", JSON.stringify(Doc.get().blocks[0]));
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

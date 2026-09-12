@@ -92,5 +92,7 @@ Clicks in the empty space below the last line of the preview land in a
 trailing paragraph (after a quote, heading, or list). That pad is not saved.
 Numbering or bullets inside a quote apply per inner line, not one item
 flattening `a b c`.
+Enter in a code block inserts a newline in the fence. Click below the box
+to type outside it.
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.
