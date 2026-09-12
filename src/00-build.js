@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.1",
+  version:  "1.2.2",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -11,6 +11,10 @@ const BUILD = {
     ["Numbering several paragraphs made four lists that all started at 1, "
      + "and Enter inside a list jumped out of it",
      "Selected blocks become one list. Enter adds the next item; Enter on an "
-     + "empty item leaves the list. Typing stays in the item."]
+     + "empty item leaves the list. Typing stays in the item."],
+    ["Pasted numbered items with blank lines became one <ol> each, so every "
+     + "marker showed as 1.",
+     "Blank lines no longer break a list. Adjacent numbered items are one "
+     + "list, 1. 2. 3."]
   ]
 };

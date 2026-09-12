@@ -228,6 +228,36 @@ G("Doc model — numbered and bullet lists");
     ok(Doc.toMarkdown() === "1. abc\n2. one", "bullet list converts to numbered", JSON.stringify(Doc.toMarkdown()));
 }
 
+G("Doc model — pasted numbered lists stay one list");
+{
+    Doc.load("1. abc\n\n2. one\n\n3. two");
+    const html = Doc.html();
+    ok((html.match(/<ol>/g) || []).length === 1, "blank lines between 1. 2. 3. are still one <ol>", html);
+    ok((html.match(/<li>/g) || []).length === 3, "three items", html);
+    ok(Doc.toMarkdown() === "1. abc\n2. one\n3. two", "renumbers as 1. 2. 3.", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("1. abc\n\n1. one\n\n1. two");
+    const html = Doc.html();
+    ok((html.match(/<ol>/g) || []).length === 1, "pasted 1. 1. 1. is still one list", html);
+    ok(Doc.toMarkdown() === "1. abc\n2. one\n3. two", "1. 1. 1. becomes 1. 2. 3. in markdown", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("");
+    Doc.paste("1. abc\n\n2. one\n\n3. two");
+    const html = Doc.html();
+    ok((html.match(/<ol>/g) || []).length === 1, "paste of a loose list is one <ol>", html);
+    ok(Doc.toMarkdown() === "1. abc\n2. one\n3. two", "paste markdown is 1. 2. 3.", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    const html = MarkdownParser.parse("1. abc\n\n2. one\n\n3. two");
+    ok((html.match(/<ol>/g) || []).length === 1, "export HTML has one <ol>", html);
+    ok((html.match(/<li>/g) || []).length === 3, "export HTML has three <li>", html);
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

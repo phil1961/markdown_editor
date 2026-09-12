@@ -53,9 +53,16 @@ const PreviewOps = {
     onPaste(e) {
         if (AppState.activePane !== "preview") return;
         e.preventDefault();
-        const text = (e.clipboardData || window.clipboardData).getData("text/plain") || "";
+        let text = (e.clipboardData || window.clipboardData).getData("text/plain") || "";
+        const html = (e.clipboardData && e.clipboardData.getData("text/html")) || "";
+        if (html && /<(ol|ul)\b/i.test(html)) {
+            try {
+                const md = HtmlToMarkdown.convert(html);
+                if (md && /(?:^|\n)\s*(?:\d+\.|[-*+])\s/.test(md)) text = md;
+            } catch (err) { /* keep text/plain */ }
+        }
         Doc.readPreviewSelection(DOM.preview);
-        Doc.insertText(text);
+        Doc.paste(text);
         syncFromDoc("preview");
     },
 

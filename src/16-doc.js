@@ -290,21 +290,15 @@ const Doc = (() => {
                 continue;
             }
             if (/^\s*[-*+]\s+/.test(line)) {
-                const items = [];
-                while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
-                    items.push(parseInlines(lines[i].replace(/^\s*[-*+]\s+/, "")));
-                    i++;
-                }
-                blocks.push({ type: "ul", items });
+                const got = collectList(lines, i, /^\s*[-*+]\s+/);
+                blocks.push({ type: "ul", items: got.items });
+                i = got.i;
                 continue;
             }
             if (/^\s*\d+\.\s+/.test(line)) {
-                const items = [];
-                while (i < lines.length && /^\s*\d+\.\s+/.test(lines[i])) {
-                    items.push(parseInlines(lines[i].replace(/^\s*\d+\.\s+/, "")));
-                    i++;
-                }
-                blocks.push({ type: "ol", items });
+                const got = collectList(lines, i, /^\s*\d+\.\s+/);
+                blocks.push({ type: "ol", items: got.items });
+                i = got.i;
                 continue;
             }
             const para = [];
@@ -317,7 +311,40 @@ const Doc = (() => {
             blocks.push({ type: "p", inlines: parseInlines(para.join(" ")) });
         }
         if (!blocks.length) blocks.push({ type: "p", inlines: [] });
-        return { blocks };
+        return { blocks: mergeAdjacentLists(blocks) };
+    }
+
+    function collectList(lines, start, re) {
+        const items = [];
+        let i = start;
+        while (i < lines.length) {
+            if (re.test(lines[i])) {
+                items.push(parseInlines(lines[i].replace(re, "")));
+                i++;
+                continue;
+            }
+            if (/^\s*$/.test(lines[i])) {
+                let j = i;
+                while (j < lines.length && /^\s*$/.test(lines[j])) j++;
+                if (j < lines.length && re.test(lines[j])) {
+                    i = j;
+                    continue;
+                }
+            }
+            break;
+        }
+        return { items, i };
+    }
+
+    function mergeAdjacentLists(blocks) {
+        const out = [];
+        for (const b of blocks) {
+            const prev = out[out.length - 1];
+            if (prev && (b.type === "ol" || b.type === "ul") && prev.type === b.type) {
+                prev.items = (prev.items || []).concat(b.items || []);
+            } else out.push(b);
+        }
+        return out;
     }
 
     function toMarkdown(doc) {
@@ -766,6 +793,41 @@ const Doc = (() => {
         setSelection(pos, pos);
     }
 
+    function paste(text) {
+        text = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+        if (!text) return;
+        const parsed = parse(text);
+        const structured = parsed.blocks.some(b => b.type !== "p") || parsed.blocks.length > 1;
+        if (!structured) {
+            insertText(text.replace(/\n+$/, ""));
+            return;
+        }
+        let { from, to } = sel;
+        if (from !== to) from = deleteRange(from, to);
+        setSelection(from, from);
+        const loc = locAt(state, from);
+        const cur = state.blocks[loc.block];
+        const empty = !blockText(cur);
+        let at = loc.block;
+        if (!empty && loc.offset > 0) {
+            if (loc.offset < blockText(cur).length) splitBlock();
+            else {
+                state.blocks.splice(loc.block + 1, 0, { type: "p", inlines: [] });
+                at = loc.block + 1;
+                setSelection(index(state)[at].from);
+            }
+            at = locAt(state, sel.from).block;
+        }
+        if (!blockText(state.blocks[at] || {})) {
+            state.blocks.splice(at, 1, ...parsed.blocks);
+        } else {
+            state.blocks.splice(at, 0, ...parsed.blocks);
+        }
+        const ix = index(state);
+        const last = ix[Math.min(at + parsed.blocks.length - 1, ix.length - 1)];
+        setSelection(last ? last.to : totalLen(state));
+    }
+
     function exitListAt(blockIndex, itemIndex) {
         const block = state.blocks[blockIndex];
         const before = block.items.slice(0, itemIndex);
@@ -943,7 +1005,7 @@ const Doc = (() => {
         toMarkdown, html, previewHTML,
         selection, setSelection,
         toggleMark, toggleBlock,
-        insertText, splitBlock, deleteBackward, deleteForward, deleteRange,
+        insertText, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
         marksAt, blockTypeAt, totalLen: () => totalLen(state),
         readPreviewSelection, restorePreviewSelection,
         MARK_TAG, TAG_MARK

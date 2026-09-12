@@ -474,6 +474,29 @@ const launchArgs = [
     const nextItem = await evalJs("({ md: document.getElementById('editor').value, lis: [...document.querySelectorAll('#preview li')].map(el => el.textContent.trim()) })");
     ok(/4\.\s*three/.test(nextItem.md) && nextItem.lis[3] === "three", "Enter inside the list adds item 4", JSON.stringify(nextItem));
 
+    G("QC: pasted numbered list with blank lines is 1. 2. 3. not 1. 1. 1.");
+    await loadMd("1. abc\n\n2. one\n\n3. two");
+    const pasted = await evalJs(`({
+      md: document.getElementById('editor').value,
+      html: document.getElementById('preview').innerHTML,
+      ols: document.querySelectorAll('#preview ol').length,
+      lis: [...document.querySelectorAll('#preview li')].map(el => el.textContent.trim()),
+      starts: [...document.querySelectorAll('#preview ol')].map(el => el.start || 1)
+    })`);
+    ok(pasted.ols === 1, "paste/load of 1.\\n\\n2.\\n\\n3. is one <ol>, not three", pasted.html);
+    ok(pasted.lis.join("|") === "abc|one|two", "three items, numbers come from the list not the text", JSON.stringify(pasted.lis));
+    ok(/^1\.\s*abc\n2\.\s*one\n3\.\s*two/.test(pasted.md), "raw pane is 1. 2. 3.", pasted.md);
+
+    await evalJs("(() => { Doc.load(''); document.getElementById('editor').value = ''; document.getElementById('preview').innerHTML = Doc.previewHTML(); AppState.activePane = 'preview'; Doc.paste('1. abc\\n\\n1. one\\n\\n1. two'); document.getElementById('editor').value = Doc.toMarkdown(); document.getElementById('preview').innerHTML = Doc.previewHTML(); })()");
+    const ones = await evalJs(`({
+      md: document.getElementById('editor').value,
+      ols: document.querySelectorAll('#preview ol').length,
+      lis: [...document.querySelectorAll('#preview li')].map(el => el.textContent.trim()),
+      html: document.getElementById('preview').innerHTML
+    })`);
+    ok(ones.ols === 1 && ones.lis.join("|") === "abc|one|two", "paste of 1. 1. 1. renders as one list", ones.html);
+    ok(/^1\.\s*abc\n2\.\s*one\n3\.\s*two/.test(ones.md), "those items are numbered 1. 2. 3. in raw", ones.md);
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

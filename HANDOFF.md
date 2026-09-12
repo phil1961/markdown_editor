@@ -79,5 +79,8 @@ no-op instead of `**abc** `. Merge only after the mark is applied.
 
 Selected paragraphs become **one** list (`1. 2. 3.`), not one `<ol>` per line.
 Enter in a list item adds the next item; Enter on an empty item leaves the list.
+Blank lines between numbered items (a paste of `1.\n\n2.\n\n3.` or `1.\n\n1.\n\n1.`)
+stay one list. HTML `<ol>` restarts at 1 for every list, so splitting items
+across lists is how every marker becomes `1.`
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.
