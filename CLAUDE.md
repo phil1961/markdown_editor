@@ -20,3 +20,4 @@ node tests/markdown-editor.browser.js   # skip 0 if no browser
 - **Version lives in `src/00-build.js` (`BUILD.version`).** Header and `document.title` read it.
 - **Verify by executing.** Parser claims are settled by `tests/markdown-editor.tests.js`, layout claims by the browser script.
 - Modules that cannot be evaluated without a document carry `@requires-dom` and are excluded from `dist/editor.cjs`.
+- **Explorer launch is `markdown-editor.ps1`.** Edit the ps1, not the generated HTML. `-Install` writes the `.reg` files from the current path. Launch copies go under `%TEMP%`, never into the repo.

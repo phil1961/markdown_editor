@@ -104,4 +104,8 @@ column left/right, delete column. Icons are disabled outside a table.
 The demo header **Download editor** (also File → Download this editor) saves
 `markdown-editor.html` so someone can open it from disk with no server.
 
-Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.
+Windows Explorer: `markdown-editor.ps1 -Install` adds **Open with Markdown Editor**
+for `.md` files (does not steal the default opener). `markdown-editor.bat file.md`
+does the same from a prompt. The script copies the editor to `%TEMP%`, injects
+`window.MD_PAYLOAD` (`b64` + `filename`), and the page loads that into Doc.
+Never write launch copies into this folder.

@@ -720,6 +720,13 @@ const launchArgs = [
     const cols2 = await evalJs("document.querySelectorAll('#preview thead th').length");
     ok(cols2 === 2, "delete column removes it", String(cols2));
 
+    G("QC: Explorer launcher payload loads the file");
+    const launched = await evalJs("(() => { const bytes = new TextEncoder().encode('# From Explorer\\n\\nhello from the launcher\\n'); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); window.MD_PAYLOAD = { b64: btoa(bin), filename: 'md-editor-launch-fixture.md' }; const okp = loadFromPayload(); return { okp, raw: document.getElementById('editor').value, h: (document.querySelector('#preview h1')||{}).textContent, name: document.getElementById('fileNameDisplay').textContent }; })()");
+    ok(launched.okp === true, "loadFromPayload returns true");
+    ok(launched.h === "From Explorer", "payload heading renders", JSON.stringify(launched));
+    ok(/hello from the launcher/.test(launched.raw), "payload body is in the raw pane", launched.raw);
+    ok(launched.name === "md-editor-launch-fixture.md", "filename display shows the launched file", launched.name);
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

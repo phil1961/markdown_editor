@@ -3,7 +3,8 @@
    No framework. Revert the fence extraction in src/20-parser.js and this
    file's "fences are opaque" group goes red. */
 "use strict";
-const fs = require("fs"), path = require("path");
+const fs = require("fs"), path = require("path"), os = require("os");
+const { spawnSync } = require("child_process");
 const dist = path.join(__dirname, "..", "dist", "editor.cjs");
 if (!fs.existsSync(dist)) {
     console.error("dist/editor.cjs is missing. Run: node build.js");
@@ -484,6 +485,56 @@ G("Doc model — table row and column edits");
     ok(Doc.get().blocks.find(b => b.type === "table").rows.length === 2, "delete row removes one");
     const md = Doc.toMarkdown();
     ok(/\|/.test(md), "table still serializes as pipes", md);
+}
+
+G("Explorer launcher writes under TEMP, not the repo");
+{
+    const win = process.platform === "win32";
+    const ps1 = path.join(__dirname, "..", "markdown-editor.ps1");
+    const html = path.join(__dirname, "..", "markdown-editor.html");
+    if (!win) {
+        ok(true, "skipped — not Windows");
+    } else if (!fs.existsSync(ps1) || !fs.existsSync(html)) {
+        ok(false, "markdown-editor.ps1 and markdown-editor.html must exist");
+    } else {
+        const fixture = path.join(os.tmpdir(), "md-editor-launcher-fixture.md");
+        fs.writeFileSync(fixture, "# Café\n\nlauncher test\n", "utf8");
+        const r = spawnSync("powershell.exe", [
+            "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-File", ps1, "-NoLaunch", fixture
+        ], { encoding: "utf8" });
+        const out = ((r.stdout || "") + (r.stderr || "")).trim();
+        ok(r.status === 0, "ps1 -NoLaunch exits 0", out);
+        const launchHtml = (r.stdout || "").trim().split(/\r?\n/).filter(Boolean).pop();
+        ok(launchHtml && fs.existsSync(launchHtml), "ps1 printed a temp html path", launchHtml || out);
+        const tempRoot = path.resolve(os.tmpdir());
+        ok(launchHtml && path.resolve(launchHtml).toLowerCase().startsWith(tempRoot.toLowerCase()),
+            "launch copy is under %TEMP%", launchHtml);
+        ok(launchHtml && /markdown-editor-launch-[0-9a-f]+\.html$/i.test(path.basename(launchHtml)),
+            "launch copy uses a unique markdown-editor-launch-*.html name", launchHtml);
+        const repoLaunch = path.join(__dirname, "..", "md_editor_launch.html");
+        ok(!fs.existsSync(repoLaunch), "does not write md_editor_launch.html into the repo");
+        if (launchHtml && fs.existsSync(launchHtml)) {
+            const injected = fs.readFileSync(launchHtml, "utf8");
+            const marker = "window.MD_PAYLOAD=";
+            const i = injected.indexOf(marker);
+            const j = injected.indexOf(";</script>", i);
+            ok(i > 0 && j > i, "injects window.MD_PAYLOAD before a script close");
+            let payload = null;
+            try { payload = JSON.parse(injected.slice(i + marker.length, j)); } catch (e) {}
+            ok(payload && payload.filename === "md-editor-launcher-fixture.md",
+                "payload filename is the launched file", payload && payload.filename);
+            const text = payload ? Buffer.from(payload.b64, "base64").toString("utf8") : "";
+            ok(text === "# Café\n\nlauncher test\n", "payload b64 is the file as UTF-8", JSON.stringify(text));
+            try { fs.unlinkSync(launchHtml); } catch (e) {}
+        }
+        const missing = spawnSync("powershell.exe", [
+            "-NoProfile", "-ExecutionPolicy", "Bypass",
+            "-File", ps1, "-NoLaunch", path.join(os.tmpdir(), "md-editor-does-not-exist.md")
+        ], { encoding: "utf8" });
+        ok(missing.status !== 0, "missing file exits non-zero");
+        try { fs.unlinkSync(fixture); } catch (e) {}
+    }
 }
 
 console.log("\n----------------------------------------------------------");

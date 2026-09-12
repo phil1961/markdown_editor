@@ -1,5 +1,6 @@
 # Generated launch copy -- the .ps1 writes this under %TEMP%, never here.
 md_editor_launch.html
+markdown-editor-launch-*.html
 
 # Test/build scratch. markdown-editor.html IS committed (the shipping artifact).
 dist/

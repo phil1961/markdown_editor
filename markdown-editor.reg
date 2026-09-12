@@ -2,6 +2,7 @@ Windows Registry Editor Version 5.00
 
 [HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.md\shell\MarkdownEditor]
 @="Open with Markdown Editor"
+"Icon"="imageres.dll,-102"
 
 [HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.md\shell\MarkdownEditor\command]
-@="powershell -NoProfile -ExecutionPolicy Bypass -File \"D:\\Projects\\Markdown_Editor\\markdown-editor.ps1\" \"%1\""
+@="powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"D:\\Projects\\Markdown_Editor\\markdown-editor.ps1\" \"%1\""

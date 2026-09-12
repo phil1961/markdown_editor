@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.3",
+  version:  "1.3.4",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -38,6 +38,9 @@ const BUILD = {
     ["Tables could be inserted but not edited",
      "With the caret in a table: insert/delete row and insert/delete column."],
     ["The demo had no way to take the editor home",
-     "Header and File menu offer Download editor: the HTML file, to open locally."]
+     "Header and File menu offer Download editor: the HTML file, to open locally."],
+    ["Opening a .md from Explorer or the command line did nothing",
+     "Right-click Open with Markdown Editor, or markdown-editor.bat file.md. "
+     + "The file loads in the editor. Launch copies go under %TEMP%."]
   ]
 };

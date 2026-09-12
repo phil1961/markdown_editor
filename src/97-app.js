@@ -227,35 +227,28 @@ function handleFormat(format) {
 // ============================================================================
 // INITIALIZATION
 // ============================================================================
-// ============================================================================
-// BAT FILE LAUNCHER PAYLOAD LOADER
-// markdown-editor.ps1 injects window.MD_PAYLOAD into a temp copy of the
-// HTML before opening it in the browser.
-// MD_PAYLOAD = { b64: "<base64 utf-8 content>", filename: "<name.md>" }
-// ============================================================================
+// markdown-editor.ps1 injects window.MD_PAYLOAD into a %TEMP% copy of the
+// HTML before opening it. { b64, filename } — b64 is UTF-8 bytes.
 function loadFromPayload() {
     if (!window.MD_PAYLOAD) return false;
 
     try {
         const { b64, filename } = window.MD_PAYLOAD;
-
-        // Decode base64 → UTF-8 text
         const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-        const content = new TextDecoder('utf-8').decode(bytes);
+        const content = new TextDecoder("utf-8").decode(bytes);
 
-        // Populate editor
         DOM.editor.value = content;
         EditorOps.updatePreviewNow();
         AppState.currentFile = filename;
         AppState.setModified(false);
         FileOps.updateFileNameDisplay();
-        DOM.statusLeft.textContent = `Opened: ${filename}`;
-        document.title = `Markdown Editor v${BUILD.version} - ${filename}`;
+        DOM.statusLeft.textContent = "Opened: " + filename;
+        document.title = "Markdown Editor v" + BUILD.version + " - " + filename;
 
-        Logger.success('App', `Loaded from bat payload: ${filename}`);
+        Logger.success("App", "Loaded from launcher payload: " + filename);
         return true;
     } catch (err) {
-        Logger.error('App', `Failed to load from bat payload: ${err.message}`);
+        Logger.error("App", "Failed to load from launcher payload: " + err.message);
         return false;
     }
 }
@@ -270,17 +263,13 @@ function init() {
     // Set up event listeners
     setupEventListeners();
     PreviewOps.init();
-    Doc.load(DOM.editor.value || "");
-    DOM.preview.innerHTML = Doc.previewHTML();
-    
-    // Initialize scroll sync
+    if (!loadFromPayload()) {
+        Doc.load(DOM.editor.value || "");
+        DOM.preview.innerHTML = Doc.previewHTML();
+    }
+
     ScrollSyncManager.init(DOM.editor, DOM.previewContainer, DOM.trackBtn);
-    
-    // Initialize drag and drop
     DragDropHandler.init();
-    
-    // Load file from MD_PAYLOAD if launched via bat/context menu
-    loadFromPayload();
 
     // Initial status update
     EditorOps.updateStatus();
