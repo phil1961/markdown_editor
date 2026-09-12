@@ -429,6 +429,16 @@ G("Doc model — Enter stays inside a code block");
     ok(pre && pre.text === "", "the inserted fence is empty");
 }
 
+G("Doc model — insert a link as a real <a>");
+{
+    Doc.load("hello");
+    Doc.setSelection(0, 5);
+    Doc.insertInlineMarkdown("[hello](https://example.com)");
+    const html = Doc.html();
+    ok(/<a href="https:\/\/example.com">hello<\/a>/.test(html), "link is an anchor, not typed into a form", html);
+    ok(/\[hello\]\(https:\/\/example.com\)/.test(Doc.toMarkdown()), "raw markdown is [hello](url)", Doc.toMarkdown());
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

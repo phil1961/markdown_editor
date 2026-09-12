@@ -646,6 +646,26 @@ const launchArgs = [
     ok(/solo/.test(fenceTyped.preText) && /```[\s\S]*solo/.test(fenceTyped.md),
       "typing goes into the empty fence", JSON.stringify(fenceTyped));
 
+    G("QC: Insert Link goes into the document, not the URL field");
+    await bootPreview("hello");
+    await evalJs("(() => { Doc.setSelection(0, 5); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#linkBtn");
+    await evalJs("(() => { document.getElementById('linkText').value = 'hello'; document.getElementById('linkUrl').value = 'https://example.com'; })()");
+    await click("#linkSubmit");
+    await frames();
+    const link = await evalJs(`({
+      md: document.getElementById("editor").value,
+      html: document.getElementById("preview").innerHTML,
+      href: (document.querySelector("#preview a") || {}).href || "",
+      aText: (document.querySelector("#preview a") || {}).textContent || "",
+      urlField: document.getElementById("linkUrl").value,
+      modal: document.getElementById("linkModal").classList.contains("active")
+    })`);
+    ok(!link.modal, "link modal closes");
+    ok(link.aText === "hello" && /example.com/.test(link.href), "preview has the link", JSON.stringify(link));
+    ok(/\[hello\]\(https:\/\/example.com\)/.test(link.md), "raw pane has [hello](url)", link.md);
+    ok(!link.urlField, "the URL field is not left holding the insert", link.urlField);
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

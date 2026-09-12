@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.9",
+  version:  "1.3.0",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -30,6 +30,8 @@ const BUILD = {
     ["Enter in a code block created a paragraph outside the fence",
      "Enter inserts a newline inside the code. Click below the box to leave it."],
     ["Code-block with no selection did nothing",
-     "The button with a collapsed caret inserts an empty fence you can type in."]
+     "The button with a collapsed caret inserts an empty fence you can type in."],
+    ["Insert Link put the <a> into the URL field of the popup",
+     "The caret is saved when the modal opens. Submit inserts [text](url) into the document and returns focus to the pane."]
   ]
 };

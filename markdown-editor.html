@@ -1119,9 +1119,9 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.9",
+  version:  "1.3.0",
   released: "12 September 2026",
-  compiled: "121506Z SEP 26",
+  compiled: "121515Z SEP 26",
   corrections: [
     ["Raw and preview were two live copies of the note",
      "A document model is now the source of truth. Both panes are views. "
@@ -1148,7 +1148,9 @@ const BUILD = {
     ["Enter in a code block created a paragraph outside the fence",
      "Enter inserts a newline inside the code. Click below the box to leave it."],
     ["Code-block with no selection did nothing",
-     "The button with a collapsed caret inserts an empty fence you can type in."]
+     "The button with a collapsed caret inserts an empty fence you can type in."],
+    ["Insert Link put the <a> into the URL field of the popup",
+     "The caret is saved when the modal opens. Submit inserts [text](url) into the document and returns focus to the pane."]
   ]
 };
 
@@ -2260,6 +2262,38 @@ const Doc = (() => {
         setSelection(pos, pos);
     }
 
+    function insertInlineMarkdown(md) {
+        let { from, to } = sel;
+        if (from !== to) from = deleteRange(from, to);
+        const c = containerAt(from);
+        if (c.block && c.block.type === "pre") {
+            insertAt(c.block, c.offset, md, []);
+            setSelection(from + String(md).length);
+            return;
+        }
+        const runs = parseInlines(md);
+        const n = runs.reduce((s, r) => s + (r.text || "").length, 0);
+        let ins = null, off = c.offset;
+        if (c.block && c.block.items) {
+            const it = itemAt(c.block, c.offset);
+            ins = c.block.items[it.item];
+            off = it.offset;
+        } else if (c.block && c.block.inlines) {
+            ins = c.block.inlines;
+        }
+        if (!ins) {
+            insertText(md);
+            return;
+        }
+        const { left, right } = splitInlinesAt(ins, off);
+        const next = mergeInlines(left.concat(runs).concat(right));
+        if (c.block.items) {
+            const it = itemAt(c.block, c.offset);
+            c.block.items[it.item] = next;
+        } else c.block.inlines = next;
+        setSelection(from + n);
+    }
+
     function paste(text) {
         text = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
         if (!text) return;
@@ -2531,7 +2565,7 @@ const Doc = (() => {
         toMarkdown, html, previewHTML,
         selection, setSelection,
         toggleMark, toggleBlock, indentQuote, outdentQuote,
-        insertText, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
+        insertText, insertInlineMarkdown, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
         marksAt, blockTypeAt, totalLen: () => totalLen(state),
         ensureTrail, landAtEnd,
         readPreviewSelection, restorePreviewSelection,
@@ -3785,6 +3819,40 @@ const DragDropHandler = {
 // MODAL HANDLERS
 // ============================================================================
 const ModalOps = {
+    _saved: null,
+
+    saveCaret() {
+        if (AppState.activePane === "preview") Doc.readPreviewSelection(DOM.preview);
+        this._saved = {
+            pane: AppState.activePane,
+            from: Doc.selection().from,
+            to: Doc.selection().to,
+            editorStart: DOM.editor.selectionStart,
+            editorEnd: DOM.editor.selectionEnd
+        };
+    },
+
+    insertAtSaved(md) {
+        const s = this._saved || { pane: AppState.activePane, from: Doc.selection().from, to: Doc.selection().to };
+        if (s.pane === "editor") {
+            AppState.activePane = "editor";
+            const from = s.editorStart != null ? s.editorStart : DOM.editor.selectionStart;
+            const to = s.editorEnd != null ? s.editorEnd : DOM.editor.selectionEnd;
+            EditorOps.replaceSpan(from, to, md);
+            EditorOps.updatePreviewNow();
+            AppState.setModified(true);
+            DOM.editor.focus();
+            const end = from + md.length;
+            DOM.editor.setSelectionRange(end, end);
+        } else {
+            AppState.activePane = "preview";
+            Doc.setSelection(s.from, s.to);
+            Doc.insertInlineMarkdown(md);
+            syncFromDoc("preview");
+            DOM.preview.focus();
+        }
+    },
+
     openLinkModal() {
         // Check if cursor is on an existing link
         const selection = window.getSelection();
@@ -3835,6 +3903,7 @@ const ModalOps = {
             }
         }
         
+        this.saveCaret();
         DOM.linkText.value = existingText;
         DOM.linkUrl.value = existingUrl;
         DOM.linkModal.classList.add('active');
@@ -3845,6 +3914,8 @@ const ModalOps = {
         DOM.linkModal.classList.remove('active');
         DOM.linkText.value = '';
         DOM.linkUrl.value = '';
+        DOM.linkText.blur();
+        DOM.linkUrl.blur();
     },
     
     submitLink() {
@@ -3856,24 +3927,8 @@ const ModalOps = {
             return;
         }
         
-        if (AppState.activePane === 'editor') {
-            EditorOps.insertLink(text, url);
-        } else {
-            // Insert in preview
-            const a = document.createElement('a');
-            a.href = url;
-            a.textContent = text;
-            
-            const selection = window.getSelection();
-            if (selection.rangeCount) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-                range.insertNode(a);
-            }
-            PreviewOps.syncToEditor();
-        }
-        
         this.closeLinkModal();
+        this.insertAtSaved("[" + text + "](" + url + ")");
     },
     
     openImageModal() {
@@ -3916,6 +3971,7 @@ const ModalOps = {
             }
         }
         
+        this.saveCaret();
         DOM.imageAlt.value = existingAlt;
         DOM.imageUrl.value = existingUrl;
         DOM.imageModal.classList.add('active');
@@ -3926,6 +3982,8 @@ const ModalOps = {
         DOM.imageModal.classList.remove('active');
         DOM.imageAlt.value = '';
         DOM.imageUrl.value = '';
+        DOM.imageAlt.blur();
+        DOM.imageUrl.blur();
     },
     
     submitImage() {
@@ -3937,24 +3995,8 @@ const ModalOps = {
             return;
         }
         
-        if (AppState.activePane === 'editor') {
-            EditorOps.insertImage(alt, url);
-        } else {
-            // Insert in preview
-            const img = document.createElement('img');
-            img.src = url;
-            img.alt = alt;
-            
-            const selection = window.getSelection();
-            if (selection.rangeCount) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-                range.insertNode(img);
-            }
-            PreviewOps.syncToEditor();
-        }
-        
         this.closeImageModal();
+        this.insertAtSaved("![" + alt + "](" + url + ")");
     }
 };
 
@@ -4167,10 +4209,10 @@ function setupEventListeners() {
     
     // Modal Enter key
     DOM.linkUrl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') ModalOps.submitLink();
+        if (e.key === 'Enter') { e.preventDefault(); ModalOps.submitLink(); }
     });
     DOM.imageUrl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') ModalOps.submitImage();
+        if (e.key === 'Enter') { e.preventDefault(); ModalOps.submitImage(); }
     });
     DOM.tableCols.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') TableOps.insert();

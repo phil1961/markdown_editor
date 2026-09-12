@@ -1053,6 +1053,38 @@ const Doc = (() => {
         setSelection(pos, pos);
     }
 
+    function insertInlineMarkdown(md) {
+        let { from, to } = sel;
+        if (from !== to) from = deleteRange(from, to);
+        const c = containerAt(from);
+        if (c.block && c.block.type === "pre") {
+            insertAt(c.block, c.offset, md, []);
+            setSelection(from + String(md).length);
+            return;
+        }
+        const runs = parseInlines(md);
+        const n = runs.reduce((s, r) => s + (r.text || "").length, 0);
+        let ins = null, off = c.offset;
+        if (c.block && c.block.items) {
+            const it = itemAt(c.block, c.offset);
+            ins = c.block.items[it.item];
+            off = it.offset;
+        } else if (c.block && c.block.inlines) {
+            ins = c.block.inlines;
+        }
+        if (!ins) {
+            insertText(md);
+            return;
+        }
+        const { left, right } = splitInlinesAt(ins, off);
+        const next = mergeInlines(left.concat(runs).concat(right));
+        if (c.block.items) {
+            const it = itemAt(c.block, c.offset);
+            c.block.items[it.item] = next;
+        } else c.block.inlines = next;
+        setSelection(from + n);
+    }
+
     function paste(text) {
         text = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
         if (!text) return;
@@ -1324,7 +1356,7 @@ const Doc = (() => {
         toMarkdown, html, previewHTML,
         selection, setSelection,
         toggleMark, toggleBlock, indentQuote, outdentQuote,
-        insertText, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
+        insertText, insertInlineMarkdown, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
         marksAt, blockTypeAt, totalLen: () => totalLen(state),
         ensureTrail, landAtEnd,
         readPreviewSelection, restorePreviewSelection,

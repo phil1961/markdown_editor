@@ -127,10 +127,10 @@ function setupEventListeners() {
     
     // Modal Enter key
     DOM.linkUrl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') ModalOps.submitLink();
+        if (e.key === 'Enter') { e.preventDefault(); ModalOps.submitLink(); }
     });
     DOM.imageUrl.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') ModalOps.submitImage();
+        if (e.key === 'Enter') { e.preventDefault(); ModalOps.submitImage(); }
     });
     DOM.tableCols.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') TableOps.insert();

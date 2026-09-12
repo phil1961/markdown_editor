@@ -3,6 +3,40 @@
 // MODAL HANDLERS
 // ============================================================================
 const ModalOps = {
+    _saved: null,
+
+    saveCaret() {
+        if (AppState.activePane === "preview") Doc.readPreviewSelection(DOM.preview);
+        this._saved = {
+            pane: AppState.activePane,
+            from: Doc.selection().from,
+            to: Doc.selection().to,
+            editorStart: DOM.editor.selectionStart,
+            editorEnd: DOM.editor.selectionEnd
+        };
+    },
+
+    insertAtSaved(md) {
+        const s = this._saved || { pane: AppState.activePane, from: Doc.selection().from, to: Doc.selection().to };
+        if (s.pane === "editor") {
+            AppState.activePane = "editor";
+            const from = s.editorStart != null ? s.editorStart : DOM.editor.selectionStart;
+            const to = s.editorEnd != null ? s.editorEnd : DOM.editor.selectionEnd;
+            EditorOps.replaceSpan(from, to, md);
+            EditorOps.updatePreviewNow();
+            AppState.setModified(true);
+            DOM.editor.focus();
+            const end = from + md.length;
+            DOM.editor.setSelectionRange(end, end);
+        } else {
+            AppState.activePane = "preview";
+            Doc.setSelection(s.from, s.to);
+            Doc.insertInlineMarkdown(md);
+            syncFromDoc("preview");
+            DOM.preview.focus();
+        }
+    },
+
     openLinkModal() {
         // Check if cursor is on an existing link
         const selection = window.getSelection();
@@ -53,6 +87,7 @@ const ModalOps = {
             }
         }
         
+        this.saveCaret();
         DOM.linkText.value = existingText;
         DOM.linkUrl.value = existingUrl;
         DOM.linkModal.classList.add('active');
@@ -63,6 +98,8 @@ const ModalOps = {
         DOM.linkModal.classList.remove('active');
         DOM.linkText.value = '';
         DOM.linkUrl.value = '';
+        DOM.linkText.blur();
+        DOM.linkUrl.blur();
     },
     
     submitLink() {
@@ -74,24 +111,8 @@ const ModalOps = {
             return;
         }
         
-        if (AppState.activePane === 'editor') {
-            EditorOps.insertLink(text, url);
-        } else {
-            // Insert in preview
-            const a = document.createElement('a');
-            a.href = url;
-            a.textContent = text;
-            
-            const selection = window.getSelection();
-            if (selection.rangeCount) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-                range.insertNode(a);
-            }
-            PreviewOps.syncToEditor();
-        }
-        
         this.closeLinkModal();
+        this.insertAtSaved("[" + text + "](" + url + ")");
     },
     
     openImageModal() {
@@ -134,6 +155,7 @@ const ModalOps = {
             }
         }
         
+        this.saveCaret();
         DOM.imageAlt.value = existingAlt;
         DOM.imageUrl.value = existingUrl;
         DOM.imageModal.classList.add('active');
@@ -144,6 +166,8 @@ const ModalOps = {
         DOM.imageModal.classList.remove('active');
         DOM.imageAlt.value = '';
         DOM.imageUrl.value = '';
+        DOM.imageAlt.blur();
+        DOM.imageUrl.blur();
     },
     
     submitImage() {
@@ -155,23 +179,7 @@ const ModalOps = {
             return;
         }
         
-        if (AppState.activePane === 'editor') {
-            EditorOps.insertImage(alt, url);
-        } else {
-            // Insert in preview
-            const img = document.createElement('img');
-            img.src = url;
-            img.alt = alt;
-            
-            const selection = window.getSelection();
-            if (selection.rangeCount) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-                range.insertNode(img);
-            }
-            PreviewOps.syncToEditor();
-        }
-        
         this.closeImageModal();
+        this.insertAtSaved("![" + alt + "](" + url + ")");
     }
 };

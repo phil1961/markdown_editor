@@ -95,5 +95,7 @@ flattening `a b c`.
 Enter in a code block inserts a newline in the fence. Click below the box
 to type outside it.
 Code-block with no selection inserts an empty fence at the caret.
+Insert Link / Image save the caret, write markdown into the document, and
+return focus to the pane — never into the modal fields.
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.
