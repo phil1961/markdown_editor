@@ -77,4 +77,7 @@ share marks; merging them back makes `applyMarkToInlines` skip the run
 (`a >= lo && b <= hi` fails). That is how double-click `"abc "` became a
 no-op instead of `**abc** `. Merge only after the mark is applied.
 
+Selected paragraphs become **one** list (`1. 2. 3.`), not one `<ol>` per line.
+Enter in a list item adds the next item; Enter on an empty item leaves the list.
+
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

@@ -437,6 +437,43 @@ const launchArgs = [
     const rt = await evalJs("({ html: document.getElementById('preview').innerHTML, strong: !!document.querySelector('#preview strong'), em: !!document.querySelector('#preview em') })");
     ok(rt.strong && rt.em, "raw **_abc_** renders as bold+italic", rt.html);
 
+    G("QC: numbered list — several paragraphs become 1. 2. 3.");
+    await bootPreview("abc");
+    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "char", text: "\r", unmodifiedText: "\r", windowsVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await frames();
+    await cdp.send("Input.insertText", { text: "one" }, S);
+    await frames();
+    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "char", text: "\r", unmodifiedText: "\r", windowsVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await frames();
+    await cdp.send("Input.insertText", { text: "two" }, S);
+    await frames();
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#numberBtn");
+    const numbered = await evalJs(`({
+      md: document.getElementById('editor').value,
+      html: document.getElementById('preview').innerHTML,
+      ols: document.querySelectorAll('#preview ol').length,
+      lis: [...document.querySelectorAll('#preview li')].map(el => el.textContent.trim())
+    })`);
+    ok(numbered.ols === 1, "one numbered list, not one list per line", numbered.html);
+    ok(numbered.lis.join("|") === "abc|one|two", "three list items in order", JSON.stringify(numbered.lis));
+    ok(/^1\.\s*abc\n2\.\s*one\n3\.\s*two/.test(numbered.md), "raw pane is 1. 2. 3.", numbered.md);
+    ok(await evalJs("document.getElementById('numberBtn').classList.contains('active')"), "number button is highlighted");
+
+    await evalJs("(() => { const n = Doc.totalLen(); Doc.setSelection(n, n); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "char", text: "\r", unmodifiedText: "\r", windowsVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await frames();
+    await cdp.send("Input.insertText", { text: "three" }, S);
+    await frames();
+    const nextItem = await evalJs("({ md: document.getElementById('editor').value, lis: [...document.querySelectorAll('#preview li')].map(el => el.textContent.trim()) })");
+    ok(/4\.\s*three/.test(nextItem.md) && nextItem.lis[3] === "three", "Enter inside the list adds item 4", JSON.stringify(nextItem));
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

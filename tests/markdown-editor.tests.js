@@ -180,6 +180,54 @@ G("Doc model — split must not re-merge, insert, Enter, round-trip");
     ok(Doc.toMarkdown() === "abcd", "backspace at the start of a paragraph joins it to the previous", JSON.stringify(Doc.toMarkdown()));
 }
 
+G("Doc model — numbered and bullet lists");
+{
+    Doc.load("abc\n\none\n\ntwo\n\nthree");
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.toggleBlock("ol");
+    const md = Doc.toMarkdown();
+    ok(md === "1. abc\n2. one\n3. two\n4. three", "numbering several paragraphs makes one list 1–4", JSON.stringify(md));
+    const html = Doc.html();
+    ok((html.match(/<ol>/g) || []).length === 1, "one <ol>, not one per line", html);
+    ok((html.match(/<li>/g) || []).length === 4, "four <li>", html);
+}
+
+{
+    Doc.load("abc\n\none\n\ntwo");
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.toggleBlock("ol");
+    Doc.toggleBlock("ol");
+    ok(Doc.toMarkdown() === "abc\n\none\n\ntwo", "un-number restores separate paragraphs", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 3);
+    Doc.toggleBlock("ol");
+    ok(Doc.toMarkdown() === "1. abc", "number a single paragraph", JSON.stringify(Doc.toMarkdown()));
+    Doc.setSelection(3, 3);
+    Doc.insertText("!");
+    ok(Doc.toMarkdown() === "1. abc!", "typing continues in the list item", JSON.stringify(Doc.toMarkdown()));
+    Doc.setSelection(4, 4);
+    Doc.splitBlock();
+    Doc.insertText("one");
+    ok(Doc.toMarkdown() === "1. abc!\n2. one", "Enter makes the next numbered item", JSON.stringify(Doc.toMarkdown()));
+    Doc.splitBlock();
+    ok(Doc.toMarkdown() === "1. abc!\n2. one\n3. ", "Enter on a filled item adds an empty one", JSON.stringify(Doc.toMarkdown()));
+    Doc.splitBlock();
+    const exited = Doc.toMarkdown();
+    ok(exited === "1. abc!\n2. one\n\n" || exited === "1. abc!\n2. one", "Enter on an empty item leaves the list", JSON.stringify(exited));
+}
+
+{
+    Doc.load("abc\n\none");
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.toggleBlock("ul");
+    ok(Doc.toMarkdown() === "- abc\n- one", "bullet several paragraphs into one list", JSON.stringify(Doc.toMarkdown()));
+    Doc.toggleBlock("ol");
+    ok(Doc.toMarkdown() === "1. abc\n2. one", "bullet list converts to numbered", JSON.stringify(Doc.toMarkdown()));
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

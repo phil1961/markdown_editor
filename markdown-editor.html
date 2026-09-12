@@ -1105,13 +1105,17 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.0",
+  version:  "1.2.1",
   released: "12 September 2026",
-  compiled: "120506Z SEP 26",
+  compiled: "120516Z SEP 26",
   corrections: [
     ["Raw and preview were two live copies of the note",
      "A document model is now the source of truth. Both panes are views. "
-     + "Toolbar and preview typing are model operations, not HTML unwrap."]
+     + "Toolbar and preview typing are model operations, not HTML unwrap."],
+    ["Numbering several paragraphs made four lists that all started at 1, "
+     + "and Enter inside a list jumped out of it",
+     "Selected blocks become one list. Enter adds the next item; Enter on an "
+     + "empty item leaves the list. Typing stays in the item."]
   ]
 };
 
@@ -1256,6 +1260,51 @@ const Doc = (() => {
         }
         const last = ix[ix.length - 1];
         return last ? { block: last.i, offset: last.text.length } : { block: 0, offset: 0 };
+    }
+    function itemAt(block, offset) {
+        const items = block.items || [];
+        if (!items.length) return { item: 0, offset: 0 };
+        let o = 0;
+        for (let k = 0; k < items.length; k++) {
+            const n = inlinesText(items[k]).length;
+            if (offset <= o + n || k === items.length - 1) {
+                return { item: k, offset: clamp(offset - o, 0, n) };
+            }
+            o += n + 1;
+        }
+        const last = items.length - 1;
+        return { item: last, offset: inlinesText(items[last]).length };
+    }
+    function splitInlinesAt(ins, offset) {
+        const split = splitInlines(ins, offset);
+        const left = [], right = [];
+        let o = 0;
+        for (const r of split) {
+            const n = (r.text || "").length;
+            if (o + n <= offset) left.push(r);
+            else if (o >= offset) right.push(r);
+            o += n;
+        }
+        return { left: mergeInlines(left), right: mergeInlines(right) };
+    }
+    function deleteInItems(items, lo, hi) {
+        if (lo === hi) return items;
+        let o = 0, pending = null;
+        const kept = [];
+        const take = ins => { pending = pending ? mergeInlines(pending.concat(ins)) : ins; };
+        const flush = () => { if (pending) { kept.push(pending); pending = null; } };
+        for (let k = 0; k < items.length; k++) {
+            const n = inlinesText(items[k]).length;
+            const a = o, c = o + n;
+            const hasSep = k < items.length - 1;
+            let piece = items[k];
+            if (hi > a && lo < c) piece = spliceInlines(piece, Math.max(0, lo - a), Math.min(n, hi - a), "");
+            take(piece);
+            if (!(hasSep && lo <= c && hi > c)) flush();
+            o = c + (hasSep ? 1 : 0);
+        }
+        flush();
+        return kept.length ? kept : [[]];
     }
 
     /* ---- inline parse / serialize ---------------------------------------- */
@@ -1503,7 +1552,11 @@ const Doc = (() => {
                 const tag = b.type;
                 let pos = from, html = "<" + tag + ">";
                 (b.items || []).forEach((it, i) => {
-                    html += "<li>" + renderInlines(it, pos, mapped) + "</li>";
+                    const inner = renderInlines(it, pos, mapped);
+                    const hole = mapped && !inlinesText(it)
+                        ? "<span data-from=\"" + pos + "\" data-to=\"" + pos + "\"><br></span>"
+                        : "";
+                    html += "<li>" + (inner || hole) + "</li>";
                     pos += inlinesText(it).length + (i < b.items.length - 1 ? 1 : 0);
                 });
                 return html + "</" + tag + ">";
@@ -1662,7 +1715,10 @@ const Doc = (() => {
             return;
         }
         if (block.items) {
-            state.blocks[i] = { type: "p", inlines: mergeInlines(block.items.flat()) };
+            const paras = (block.items.length ? block.items : [[]]).map(it => ({
+                type: "p", inlines: mergeInlines(it)
+            }));
+            state.blocks.splice(i, 1, ...paras);
             return;
         }
         if (block.type === "pre") {
@@ -1680,28 +1736,43 @@ const Doc = (() => {
         const { from, to } = sel;
         const hit = blocksOverlapping(from, to);
         if (!hit.length) return;
-        const indices = hit.map(b => b.i).sort((a, b) => b - a);
-        if (type === "p" || indices.every(i => state.blocks[i].type === type)) {
-            indices.forEach(i => convertBlockToP(i));
+        const indices = hit.map(b => b.i).sort((a, b) => a - b);
+
+        if (type === "ul" || type === "ol") {
+            if (indices.every(i => state.blocks[i].type === type)) {
+                for (let k = indices.length - 1; k >= 0; k--) convertBlockToP(indices[k]);
+                return;
+            }
+            const items = [];
+            for (const i of indices) {
+                const block = state.blocks[i];
+                if (block.items) items.push(...block.items);
+                else if (block.inlines) items.push(block.inlines);
+                else items.push([{ text: blockText(block), marks: [] }]);
+            }
+            if (!items.length) items.push([]);
+            const first = indices[0], last = indices[indices.length - 1];
+            state.blocks.splice(first, last - first + 1, { type, items });
             return;
         }
-        hit.forEach(b => {
-            const block = state.blocks[b.i];
-            if (type === "ul" || type === "ol") {
-                if (block.inlines) state.blocks[b.i] = { type, items: [block.inlines] };
-                else if (block.items) block.type = type;
-                else state.blocks[b.i] = { type, items: [[{ text: blockText(block), marks: [] }]] };
-            } else if (type === "quote") {
-                state.blocks[b.i] = { type: "quote", blocks: [{
+
+        if (type === "p" || indices.every(i => state.blocks[i].type === type)) {
+            for (let k = indices.length - 1; k >= 0; k--) convertBlockToP(indices[k]);
+            return;
+        }
+        indices.forEach(i => {
+            const block = state.blocks[i];
+            if (type === "quote") {
+                state.blocks[i] = { type: "quote", blocks: [{
                     type: block.type, inlines: block.inlines, items: block.items,
                     text: block.text, rows: block.rows, lang: block.lang
                 }] };
             } else if (type === "pre") {
-                state.blocks[b.i] = { type: "pre", lang: "", text: blockText(block) };
+                state.blocks[i] = { type: "pre", lang: "", text: blockText(block) };
             } else if (block.inlines) {
                 block.type = type;
             } else {
-                state.blocks[b.i] = { type, inlines: parseInlines(blockText(block)) };
+                state.blocks[i] = { type, inlines: parseInlines(blockText(block)) };
             }
         });
     }
@@ -1759,12 +1830,19 @@ const Doc = (() => {
         const ix = index(state)[loc.block];
         if (!ix) return null;
         const block = state.blocks[loc.block];
-        if (!block.inlines) return null;
+        let ins = block.inlines;
+        let offset = loc.offset;
+        if (block.items) {
+            const it = itemAt(block, loc.offset);
+            ins = block.items[it.item];
+            offset = it.offset;
+        }
+        if (!ins) return null;
         let o = 0;
-        for (const r of block.inlines) {
+        for (const r of ins) {
             const n = (r.text || "").length;
-            if (loc.offset >= o && loc.offset < o + n) return r;
-            if (loc.offset === o + n && o + n === inlinesText(block.inlines).length) return r;
+            if (offset >= o && offset < o + n) return r;
+            if (offset === o + n && o + n === inlinesText(ins).length) return r;
             o += n;
         }
         return null;
@@ -1789,6 +1867,7 @@ const Doc = (() => {
             const hi = Math.min(b.text.length, to - b.from);
             const block = state.blocks[b.i];
             if (block.inlines) block.inlines = spliceInlines(block.inlines, lo, hi, "");
+            else if (block.items) block.items = deleteInItems(block.items, lo, hi);
             else if (block.text != null) block.text = (block.text || "").slice(0, lo) + (block.text || "").slice(hi);
         }
         mergeEmpty();
@@ -1827,52 +1906,79 @@ const Doc = (() => {
         if (!state.blocks.length) state = empty();
     }
 
+    function insertAt(block, offset, text, marks) {
+        if (block.items) {
+            const it = itemAt(block, offset);
+            block.items[it.item] = spliceInlines(block.items[it.item], it.offset, it.offset, text, marks);
+            return;
+        }
+        if (block.inlines) {
+            block.inlines = spliceInlines(block.inlines, offset, offset, text, marks);
+            return;
+        }
+        if (block.text != null) {
+            block.text = (block.text || "").slice(0, offset) + text + (block.text || "").slice(offset);
+        }
+    }
+
     function insertText(text) {
         let { from, to } = sel;
         if (from !== to) from = deleteRange(from, to);
         const parts = String(text || "").split("\n");
         const leftMarks = (runContaining(from > 0 ? from - 1 : from) || {}).marks || [];
         const loc = locAt(state, from);
-        const block = state.blocks[loc.block];
-        if (block.inlines) {
-            block.inlines = spliceInlines(block.inlines, loc.offset, loc.offset, parts[0], leftMarks);
-        } else if (block.text != null) {
-            block.text = (block.text || "").slice(0, loc.offset) + parts[0] + (block.text || "").slice(loc.offset);
-        }
+        insertAt(state.blocks[loc.block], loc.offset, parts[0], leftMarks);
         let pos = from + parts[0].length;
         for (let p = 1; p < parts.length; p++) {
             setSelection(pos, pos);
             splitBlock();
             pos = sel.from;
             const loc2 = locAt(state, pos);
-            const bl = state.blocks[loc2.block];
-            if (bl.inlines) bl.inlines = spliceInlines(bl.inlines, loc2.offset, loc2.offset, parts[p], leftMarks);
+            insertAt(state.blocks[loc2.block], loc2.offset, parts[p], leftMarks);
             pos += parts[p].length;
         }
         setSelection(pos, pos);
+    }
+
+    function exitListAt(blockIndex, itemIndex) {
+        const block = state.blocks[blockIndex];
+        const before = block.items.slice(0, itemIndex);
+        const after = block.items.slice(itemIndex + 1);
+        const replacement = [];
+        if (before.length) replacement.push({ type: block.type, items: before });
+        replacement.push({ type: "p", inlines: [] });
+        if (after.length) replacement.push({ type: block.type, items: after });
+        state.blocks.splice(blockIndex, 1, ...replacement);
+        const paraI = blockIndex + (before.length ? 1 : 0);
+        const at = index(state)[paraI].from;
+        setSelection(at, at);
     }
 
     function splitBlock() {
         const { from } = sel;
         const loc = locAt(state, from);
         const block = state.blocks[loc.block];
+        if (block.items) {
+            const it = itemAt(block, loc.offset);
+            if (!inlinesText(block.items[it.item])) {
+                exitListAt(loc.block, it.item);
+                return;
+            }
+            const { left, right } = splitInlinesAt(block.items[it.item], it.offset);
+            block.items[it.item] = left;
+            block.items.splice(it.item + 1, 0, right);
+            setSelection(from + 1, from + 1);
+            return;
+        }
         if (!block.inlines) {
             state.blocks.splice(loc.block + 1, 0, { type: "p", inlines: [] });
             setSelection(from + 1, from + 1);
             return;
         }
-        const ins = splitInlines(block.inlines, loc.offset);
-        const left = [], right = [];
-        let o = 0;
-        for (const r of ins) {
-            const n = (r.text || "").length;
-            if (o + n <= loc.offset) left.push(r);
-            else if (o >= loc.offset) right.push(r);
-            o += n;
-        }
-        block.inlines = mergeInlines(left);
-        const newType = /^h[1-6]$/.test(block.type) ? "p" : (block.type === "p" ? "p" : "p");
-        state.blocks.splice(loc.block + 1, 0, { type: newType, inlines: mergeInlines(right) });
+        const { left, right } = splitInlinesAt(block.inlines, loc.offset);
+        block.inlines = left;
+        const newType = /^h[1-6]$/.test(block.type) ? "p" : "p";
+        state.blocks.splice(loc.block + 1, 0, { type: newType, inlines: right });
         setSelection(from + 1, from + 1);
     }
 
@@ -1881,6 +1987,26 @@ const Doc = (() => {
         if (from !== to) { setSelection(deleteRange(from, to)); return; }
         if (from <= 0) return;
         const loc = locAt(state, from);
+        const block = state.blocks[loc.block];
+        if (block.items) {
+            const it = itemAt(block, loc.offset);
+            if (it.offset === 0 && it.item > 0) {
+                const prevLen = inlinesText(block.items[it.item - 1]).length;
+                block.items[it.item - 1] = mergeInlines(block.items[it.item - 1].concat(block.items[it.item]));
+                block.items.splice(it.item, 1);
+                setSelection(from - 1);
+                return;
+            }
+            if (it.offset === 0 && it.item === 0) {
+                const first = block.items[0];
+                const rest = block.items.slice(1);
+                const para = { type: "p", inlines: first };
+                if (rest.length) state.blocks.splice(loc.block, 1, para, { type: block.type, items: rest });
+                else state.blocks[loc.block] = para;
+                setSelection(index(state)[loc.block].from);
+                return;
+            }
+        }
         if (loc.offset === 0 && loc.block > 0) {
             const prev = state.blocks[loc.block - 1];
             const cur = state.blocks[loc.block];
@@ -1889,6 +2015,10 @@ const Doc = (() => {
                 prev.inlines = mergeInlines(prev.inlines.concat(cur.inlines));
                 state.blocks.splice(loc.block, 1);
                 setSelection(index(state)[loc.block - 1].from + joinAt);
+            } else if (prev.items && cur.inlines) {
+                prev.items.push(cur.inlines);
+                state.blocks.splice(loc.block, 1);
+                setSelection(from - 1);
             } else {
                 deleteRange(from - 1, from);
                 setSelection(from - 1);
