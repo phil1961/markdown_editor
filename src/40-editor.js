@@ -299,8 +299,8 @@ const EditorOps = {
     updatePreview() {
         if (this._previewTimer) clearTimeout(this._previewTimer);
         this._previewTimer = setTimeout(() => {
-            const markdown = DOM.editor.value;
-            DOM.preview.innerHTML = MarkdownParser.parse(markdown);
+            Doc.load(DOM.editor.value);
+            DOM.preview.innerHTML = Doc.previewHTML();
             this.updateStatus();
         }, 30);
     },
@@ -310,8 +310,8 @@ const EditorOps = {
      */
     updatePreviewNow() {
         if (this._previewTimer) clearTimeout(this._previewTimer);
-        const markdown = DOM.editor.value;
-        DOM.preview.innerHTML = MarkdownParser.parse(markdown);
+        Doc.load(DOM.editor.value);
+        DOM.preview.innerHTML = Doc.previewHTML();
         this.updateStatus();
     },
     

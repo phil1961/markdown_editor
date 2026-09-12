@@ -9,7 +9,7 @@ if (!fs.existsSync(dist)) {
     console.error("dist/editor.cjs is missing. Run: node build.js");
     process.exit(2);
 }
-const { MarkdownParser, BUILD } = require(dist);
+const { MarkdownParser, BUILD, Doc } = require(dist);
 
 let pass = 0, fail = 0, group = "";
 const G = n => { group = n; console.log("\n" + n); };
@@ -57,6 +57,127 @@ G("Tables still parse");
     const md = "| A | B |\n| --- | --- |\n| 1 | 2 |\n";
     const html = MarkdownParser.parse(md);
     ok(/<table>/.test(html) && /<th>A<\/th>/.test(html), "pipe table becomes HTML", html);
+}
+
+G("Doc model — marks, peel, H1, trailing space");
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 3);
+    Doc.toggleMark("bold");
+    ok(Doc.toMarkdown() === "**abc**", "bold wrap", JSON.stringify(Doc.toMarkdown()));
+    Doc.toggleMark("italic");
+    const bi = Doc.toMarkdown();
+    ok(/\*/.test(bi) && /\*\*/.test(bi), "bold+italic stacked", bi);
+    ok(bi === "**_abc_**", "bold+italic serializes without ***", bi);
+    Doc.toggleMark("underline");
+    Doc.toggleMark("strike");
+    const stacked = Doc.toMarkdown();
+    ok(/\+\+/.test(stacked) && /~~/.test(stacked), "underline+strike stacked", stacked);
+    Doc.toggleMark("underline");
+    const peeledU = Doc.toMarkdown();
+    ok(!/\+\+/.test(peeledU) && /~~/.test(peeledU) && /\*\*/.test(peeledU), "peel underline keeps the rest", peeledU);
+    Doc.toggleMark("bold");
+    const peeledB = Doc.toMarkdown();
+    ok(!peeledB.includes("**") && /\*/.test(peeledB) && /~~/.test(peeledB), "peel bold keeps italic/strike", peeledB);
+}
+
+{
+    Doc.load("abc ");
+    ok(Doc.toMarkdown() === "abc ", "load keeps a trailing space", JSON.stringify(Doc.toMarkdown()));
+    Doc.setSelection(0, 4);
+    Doc.toggleMark("bold");
+    const md = Doc.toMarkdown();
+    ok(md.includes("**abc**") && !md.includes("**abc **"), "trailing space stays outside **", JSON.stringify(md));
+    ok(Doc.marksAt(0, 4).has("bold"), "highlighter treats trailing space as outside the mark");
+}
+
+{
+    Doc.load(" abc");
+    Doc.setSelection(0, 4);
+    Doc.toggleMark("bold");
+    const md = Doc.toMarkdown();
+    ok(md.includes("**abc**") && !md.includes("** abc**"), "leading space stays outside **", JSON.stringify(md));
+}
+
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 3);
+    Doc.toggleBlock("h1");
+    ok(/^#\s*abc/.test(Doc.toMarkdown()), "H1 on", Doc.toMarkdown());
+    Doc.toggleBlock("h1");
+    ok(!/^#/.test(Doc.toMarkdown().trim()), "H1 off", Doc.toMarkdown());
+    Doc.setSelection(1, 1);
+    Doc.toggleBlock("h1");
+    ok(/^#\s*abc/.test(Doc.toMarkdown()), "H1 on with a collapsed caret", Doc.toMarkdown());
+}
+
+G("Doc model — split must not re-merge, insert, Enter, round-trip");
+{
+    Doc.load("abcdef");
+    Doc.setSelection(2, 4);
+    Doc.toggleMark("bold");
+    ok(Doc.toMarkdown() === "ab**cd**ef", "bold a slice inside a run", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("abcdef");
+    Doc.setSelection(2, 2);
+    Doc.insertText("X");
+    ok(Doc.toMarkdown() === "abXcdef", "insert in the middle of a run", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("abcd");
+    Doc.setSelection(2, 2);
+    Doc.splitBlock();
+    ok(Doc.toMarkdown() === "ab\n\ncd", "Enter splits a paragraph", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 3);
+    Doc.toggleMark("bold");
+    Doc.toggleMark("italic");
+    const md = Doc.toMarkdown();
+    Doc.load(md);
+    const html = Doc.html();
+    ok(/<strong>/.test(html) && /<em>/.test(html), "bold+italic survives a markdown round-trip", html + " | " + md);
+    ok(Doc.toMarkdown() === md, "round-trip is stable", Doc.toMarkdown());
+}
+
+{
+    const html = MarkdownParser.parse("***xyz***");
+    ok(/<strong>/.test(html) && /<em>/.test(html), "***xyz*** is bold+italic", html);
+}
+
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 0);
+    Doc.toggleMark("bold");
+    ok(Doc.toMarkdown() === "abc", "collapsed caret does not wrap", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("abcdef");
+    Doc.setSelection(2, 4);
+    Doc.deleteBackward();
+    ok(Doc.toMarkdown() === "abef", "backspace on a range deletes the range", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("abc");
+    Doc.setSelection(3, 3);
+    Doc.deleteBackward();
+    ok(Doc.toMarkdown() === "ab", "backspace deletes one character", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("abcd");
+    Doc.setSelection(2, 2);
+    Doc.splitBlock();
+    Doc.setSelection(3, 3);
+    Doc.deleteBackward();
+    ok(Doc.toMarkdown() === "abcd", "backspace at the start of a paragraph joins it to the previous", JSON.stringify(Doc.toMarkdown()));
 }
 
 console.log("\n----------------------------------------------------------");

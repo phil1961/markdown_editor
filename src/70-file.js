@@ -11,7 +11,8 @@ const FileOps = {
         }
         
         DOM.editor.value = '';
-        DOM.preview.innerHTML = '';
+        Doc.load('');
+        DOM.preview.innerHTML = Doc.previewHTML();
         AppState.currentFile = null;
         AppState.setModified(false);
         this.updateFileNameDisplay();

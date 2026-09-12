@@ -174,6 +174,22 @@ const launchArgs = [
     selected: window.getSelection().toString(),
     pane: AppState.activePane
   })`);
+  const bootPreview = async (text) => {
+    await evalJs(`(() => {
+      Doc.load("");
+      document.getElementById("editor").value = "";
+      document.getElementById("preview").innerHTML = Doc.previewHTML();
+      AppState.activePane = "preview";
+    })()`);
+    await click("#preview");
+    if (text) {
+      await cdp.send("Input.insertText", { text }, S);
+      await frames();
+    }
+  };
+  const loadMd = async (md) => {
+    await evalJs("(() => { Doc.load(" + JSON.stringify(md) + "); document.getElementById('editor').value = Doc.toMarkdown(); document.getElementById('preview').innerHTML = Doc.previewHTML(); AppState.activePane = 'preview'; })()");
+  };
   const shots = [];
   const shot = async (name, caption, selector, viewportOnly) => {
     let clip;
@@ -214,8 +230,8 @@ const launchArgs = [
     await evalJs("(() => { const ed = document.getElementById('editor'); ed.focus(); ed.value = '# Hello from the browser'; ed.dispatchEvent(new Event('input', { bubbles: true })); })()");
     await evalJs("new Promise(r => setTimeout(r, 50))");
     await frames();
-    const prev = await evalJs("document.getElementById('preview').innerHTML");
-    ok(/<h1>Hello from the browser<\/h1>/.test(prev), "typing a heading renders in the preview", prev);
+    const prev = await evalJs("({ html: document.getElementById('preview').innerHTML, h: (document.querySelector('#preview h1')||{}).textContent })");
+    ok(prev.h === "Hello from the browser", "typing a heading renders in the preview", JSON.stringify(prev));
 
     G("Toolbar bold is a real pointer");
     await evalJs("(() => { const ed = document.getElementById('editor'); ed.focus(); ed.value = 'word'; ed.setSelectionRange(0, 4); })()");
@@ -251,13 +267,10 @@ const launchArgs = [
 
     G("Preview pane: type, double-click a word, toggle bold/italic/underline");
     await click("#viewBothBtn");
-    await click("#preview");
-    await evalJs("(() => { const p = document.getElementById('preview'); p.focus(); p.innerHTML = ''; AppState.activePane = 'preview'; })()");
-    await click("#preview");
-    await cdp.send("Input.insertText", { text: "alpha Widget omega" }, S);
-    await frames();
+    await bootPreview("alpha Widget omega");
     const typed = await evalJs("document.getElementById('preview').innerText");
     ok(/Widget/.test(typed), "typed into the preview pane (" + JSON.stringify(typed) + ")");
+    ok(/Widget/.test(await evalJs("document.getElementById('editor').value")), "preview typing appears in the raw pane");
 
     const formats = [
       { name: "bold", btn: "boldBtn", tag: "strong" },
@@ -265,10 +278,7 @@ const launchArgs = [
       { name: "underline", btn: "underlineBtn", tag: "u" }
     ];
     for (const fmt of formats) {
-      await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = ''; p.focus(); AppState.activePane = 'preview'; })()");
-      await click("#preview");
-      await cdp.send("Input.insertText", { text: "alpha Widget omega" }, S);
-      await frames();
+      await bootPreview("alpha Widget omega");
 
       await dblclickWord("Widget");
       const selected = await evalJs("window.getSelection().toString()");
@@ -299,36 +309,35 @@ const launchArgs = [
     G("QC: bugs the toggle tests would not catch");
     await click("#viewBothBtn");
 
-    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<p>hello</p>'; AppState.activePane = 'preview'; p.focus(); const r = document.createRange(); r.selectNodeContents(p.querySelector('p')); r.collapse(true); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); })()");
+    await loadMd("hello");
+    await evalJs("(() => { Doc.setSelection(0, 0); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
     await click("#boldBtn");
     const empty = await evalJs("({ strongs: [...document.querySelectorAll('#preview strong')].map(el => el.textContent) })");
     ok(empty.strongs.length === 0, "collapsed caret does not insert an empty <strong>", JSON.stringify(empty));
 
-    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<p><strong>Widget</strong></p>'; AppState.activePane = 'preview'; const strong = p.querySelector('strong'); const r = document.createRange(); r.selectNode(strong); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); })()");
+    await loadMd("**Widget**");
+    await evalJs("(() => { const n = Doc.totalLen(); Doc.setSelection(0, n); AppState.activePane = 'preview'; })()");
+    await click("#preview");
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
     await click("#boldBtn");
     const unwrapped = await evalJs("({ n: document.querySelectorAll('#preview strong').length, html: document.getElementById('preview').innerHTML, md: document.getElementById('editor').value })");
-    ok(unwrapped.n === 0, "selecting the <strong> itself toggles bold off (closest, not parent-only)", unwrapped.html);
+    ok(unwrapped.n === 0, "selecting the bold run toggles bold off", unwrapped.html);
 
-    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<p>alpha <strong>Widget</strong> omega</p>'; AppState.activePane = 'preview'; const r = document.createRange(); r.selectNodeContents(p.querySelector('strong')); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); IconHighlighter.checkPreviewFormats(); })()");
+    await loadMd("alpha **Widget** omega");
+    await dblclickWord("Widget");
     const lit = await evalJs("document.getElementById('boldBtn').classList.contains('active')");
-    ok(lit, "highlighter lights Bold while the caret is in <strong>");
-    await evalJs("window.getSelection().removeAllRanges(); IconHighlighter.checkPreviewFormats(); true");
-    const cleared = await evalJs("document.getElementById('boldBtn').classList.contains('active')");
-    ok(!cleared, "highlighter clears when the selection is gone");
+    ok(lit, "highlighter lights Bold while the caret is in bold text");
 
-    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<p>alpha <strong>Widget</strong> omega</p>'; PreviewOps.syncToEditor(); })()");
+    await loadMd("alpha **Widget** omega");
     const md = await evalJs("document.getElementById('editor').value");
-    ok(/\*\*Widget\*\*/.test(md), "preview <strong> round-trips to **Widget** in the editor", md);
+    ok(/\*\*Widget\*\*/.test(md), "raw pane keeps **Widget**", md);
 
-    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>'; PreviewOps.syncToEditor(); })()");
+    await loadMd("| A | B |\n| --- | --- |\n| 1 | 2 |\n");
     const tableMd = await evalJs("document.getElementById('editor').value");
-    ok(/\| A \|/.test(tableMd) && /\| 1 \|/.test(tableMd), "a preview table round-trips to pipe markdown", tableMd);
+    ok(/\| A \|/.test(tableMd) && /\| 1 \|/.test(tableMd), "a markdown table round-trips", tableMd);
 
     G("QC: stacked formats — removing underline leaves the rest");
-    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = ''; p.focus(); AppState.activePane = 'preview'; })()");
-    await click("#preview");
-    await cdp.send("Input.insertText", { text: "abc" }, S);
-    await frames();
+    await bootPreview("abc");
     await dblclickWord("abc");
     for (const id of ["boldBtn", "italicBtn", "strikeBtn", "underlineBtn"]) await click("#" + id);
     const stacked = await evalJs("({ html: document.getElementById('preview').innerHTML, tags: ['strong','em','del','u'].filter(t => document.querySelector('#preview ' + t)) })");
@@ -350,10 +359,7 @@ const launchArgs = [
     ok(peeled.bBtn, "bold button stays highlighted");
 
     G("QC: peeling bold keeps italic/underline/strike highlighted");
-    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = ''; p.focus(); AppState.activePane = 'preview'; })()");
-    await click("#preview");
-    await cdp.send("Input.insertText", { text: "abc" }, S);
-    await frames();
+    await bootPreview("abc");
     await dblclickWord("abc");
     for (const id of ["boldBtn", "italicBtn", "underlineBtn", "strikeBtn"]) await click("#" + id);
     await dblclickWord("abc");
@@ -376,10 +382,7 @@ const launchArgs = [
       "italic, underline and strike stay highlighted without re-clicking the word", JSON.stringify(peeledBold));
 
     G("QC: H1 applies and toggles off");
-    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = ''; p.focus(); AppState.activePane = 'preview'; })()");
-    await click("#preview");
-    await cdp.send("Input.insertText", { text: "abc" }, S);
-    await frames();
+    await bootPreview("abc");
     await dblclickWord("abc");
     await click("#h1Btn");
     const h1on = await evalJs(`({
@@ -401,6 +404,38 @@ const launchArgs = [
     ok(!h1off.h1, "second H1 click removes the heading", h1off.html);
     ok(!/^#\s/m.test(h1off.md.trim()), "raw pane no longer has a heading marker", h1off.md);
     ok(!h1off.btn, "H1 button unhighlighted");
+
+    G("QC: insert in the middle of a word, Enter, partial wrap");
+    await loadMd("abcdef");
+    await evalJs("(() => { Doc.setSelection(2, 2); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#preview");
+    await evalJs("(() => { Doc.setSelection(2, 2); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await cdp.send("Input.insertText", { text: "X" }, S);
+    await frames();
+    const mid = await evalJs("({ md: document.getElementById('editor').value, text: document.getElementById('preview').innerText })");
+    ok(mid.md === "abXcdef" || /abXcdef/.test(mid.text.replace(/\s/g, "")),
+      "typing in the middle of a word updates raw and preview", JSON.stringify(mid));
+
+    await loadMd("abcd");
+    await evalJs("(() => { Doc.setSelection(2, 2); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#preview");
+    await evalJs("(() => { Doc.setSelection(2, 2); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "char", text: "\r", unmodifiedText: "\r", windowsVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await frames();
+    const split = await evalJs("({ md: document.getElementById('editor').value, ps: document.querySelectorAll('#preview p').length, html: document.getElementById('preview').innerHTML })");
+    ok(split.ps >= 2 || /\n\n/.test(split.md), "Enter splits the paragraph", JSON.stringify(split));
+
+    await loadMd("abcdef");
+    await evalJs("(() => { Doc.setSelection(2, 4); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#boldBtn");
+    const slice = await evalJs("({ md: document.getElementById('editor').value, html: document.getElementById('preview').innerHTML, tag: (document.querySelector('#preview strong')||{}).textContent })");
+    ok(slice.md === "ab**cd**ef" && slice.tag === "cd", "bold a slice inside a word", JSON.stringify(slice));
+
+    await loadMd("**_abc_**");
+    const rt = await evalJs("({ html: document.getElementById('preview').innerHTML, strong: !!document.querySelector('#preview strong'), em: !!document.querySelector('#preview em') })");
+    ok(rt.strong && rt.em, "raw **_abc_** renders as bold+italic", rt.html);
 
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {

@@ -1,9 +1,6 @@
 # Markdown Editor — handoff
 
-Written 11 September 2026, at the end of the re-org that split the 3,428-line page
-the way the Retirement Wealth Model was split.
-
-## Where things stand
+`markdown-editor.html` is **generated**. Edit `src/`, run `node build.js`, commit both.
 
 ```
 node build.js
@@ -12,37 +9,72 @@ node tests/markdown-editor.tests.js
 node tests/markdown-editor.browser.js
 ```
 
-`markdown-editor.html` is **generated**. Edit `src/`, run `node build.js`, commit both.
+---
+
+## Design: the document is the source of truth
+
+The raw textarea and the preview pane are **views**. They do not sync by
+turning HTML into markdown. A document model sits in the middle.
 
 ```
-src/00-build.js     BUILD: version, corrections, compile DTG
-src/10-logger.js    Logger
-src/20-parser.js    MarkdownParser (pure; in dist)
-src/25-htmlmd.js    HtmlToMarkdown  @requires-dom
-src/30-state.js     AppState
-src/40-editor.js    TableOps + EditorOps  @requires-dom
-src/50-preview.js   PreviewOps  @requires-dom
-src/60-chrome.js    ScrollSync, ViewMode, IconHighlighter  @requires-dom
-src/70-file.js      FileOps + DragDrop  @requires-dom
-src/80-modals.js    ModalOps  @requires-dom
-src/90-dom.js       DOM lookups  @requires-dom
-src/97-app.js       events, payload, init  @requires-dom
-src/page.html       body; @@STYLE@@ @@SCRIPT@@
-src/style.css
-build.js            assembler → markdown-editor.html + dist/editor.cjs
+raw textarea  ←serialize—  Doc (blocks + marked runs)  —render→  preview
+                    ↑
+            toolbar / beforeinput / typing
 ```
 
-## What this session did
+### Why
 
-- Page split into numbered modules. `build.js --check` is the stale-artifact gate.
-- Parser: fences extracted out of band, all leading `&gt;` restored, `href`/`src` escaped, `javascript:`/`data:` dropped, `_snake_case_` is not italic.
-- Quote+ prepends `>` onto an existing quote prefix.
-- File → Download. Native textarea undo; dead `AppState.history` removed. `setRangeText` in format helpers. Preview pane is editable and syncs back to markdown.
-- Ctrl+Shift+L toggles the log panel.
-- Tests: parser fixtures in Node; CDP browser check copied from the wealth model (no npm).
+contenteditable HTML is not a document. Double-click includes a trailing
+space, nested marks live in a tag pile, headings become `div`s, and
+`innerHTML` → markdown cannot invert what the browser just did. The
+highlighter walking the DOM is a symptom of that, not a separate feature.
 
-## Open
+### Model
 
-- Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is a later addition. Leave those files alone until that work starts.
-- HtmlToMarkdown still has no table round-trip; editing a table in the preview can flatten it.
-- Root `.gitignore` was ACL-locked RX-only on the machine that did this re-org (Charleston leftover). If `git status` still shows `md_editor_launch.html`, grant the working user Modify on `.gitignore` and replace it; local excludes are in `.git/info/exclude`.
+- **Blocks:** `p`, `h1`–`h6`, `ul`, `ol`, `quote`, `pre`, `hr`, `table`
+- **Runs:** `{ text, marks: ['bold','italic','underline','strike','code'], href? }`
+- **Positions:** integer offsets over visible text (`\n` between blocks)
+- **Selection:** `{ from, to }` in those offsets, stored on `Doc`
+
+Toolbar: `Doc.toggleMark('bold')` / `Doc.toggleBlock('h1')` on the current
+range. Toggle means: if the whole range already has it, remove it; else add
+it. Nested marks are a set on a run. Peeling bold does not flatten italic.
+
+Preview: `beforeinput` is cancelled. Insert/delete/Enter become model
+operations, then both views re-render and the caret is restored via
+`data-from` / `data-to` spans. The browser does not own the HTML.
+
+Raw: native caret and undo while focused. On `input`, `Doc.load(markdown)`
+and the preview re-renders. Toolbar while the raw pane is focused maps
+through the same model once the markdown is loaded.
+
+### Modules
+
+```
+src/16-doc.js       Doc — parse, serialize, render, ops, caret map
+src/20-parser.js    MarkdownParser.parse = clean HTML for export (uses Doc)
+src/25-htmlmd.js    HTML file import only
+src/50-preview.js   beforeinput / paste → Doc
+src/60-chrome.js    highlighter reads Doc.marksAt / blockTypeAt in preview
+```
+
+### Tests that must exist (found in production by a human; must not regress)
+
+The browser suite is the gate for UI. It must fail if these return:
+
+1. Double-click a word, Bold: raw is `**word**` not `**word **`
+2. Stack Bold+Italic+Underline+Strike; peel Underline: the other three remain
+3. After peeling Bold from a four-mark stack, Italic+Underline+Strike stay lit
+   without clicking the word again
+4. H1 on then H1 off: heading gone, no alert, button unlit
+5. Preview typing appears in raw; raw typing appears in preview
+6. Nested mark peel does not flatten remaining marks
+
+### Pitfall (do not reintroduce)
+
+`splitInlines` must **not** call `mergeInlines`. The two halves of a cut still
+share marks; merging them back makes `applyMarkToInlines` skip the run
+(`a >= lo && b <= hi` fails). That is how double-click `"abc "` became a
+no-op instead of `**abc** `. Merge only after the mark is applied.
+
+Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

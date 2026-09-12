@@ -199,33 +199,28 @@ const IconHighlighter = {
      * Check format at cursor position in preview
      */
     checkPreviewFormats() {
-        const selection = window.getSelection();
-        if (!selection.rangeCount) {
-            this.resetButtons();
-            return;
+        if (!DOM.preview.contains(window.getSelection().anchorNode)
+            && window.getSelection().anchorNode !== DOM.preview) {
+            /* still update from Doc if preview is the active pane */
         }
-
-        const node = selection.anchorNode;
-        if (!node || !DOM.preview.contains(node)) {
-            this.resetButtons();
-            return;
-        }
-
+        Doc.readPreviewSelection(DOM.preview);
         this.resetButtons();
-        const range = selection.getRangeAt(0);
-        this.markFormatsFrom(range.startContainer);
-        this.markFormatsFrom(range.endContainer);
-        /* After peeling an outer wrap, the selection is often the remaining
-           inner element (selectNodeContents). Walking up sees italic but not
-           underline/strike nested inside it. */
-        const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE
-            ? range.startContainer
-            : range.startContainer.parentElement;
-        if (startEl && startEl.nodeType === Node.ELEMENT_NODE && DOM.preview.contains(startEl)) {
-            for (const el of startEl.querySelectorAll('strong, b, em, i, u, del, s, code, h1, h2, h3, h4, h5, h6, li, blockquote, a, img')) {
-                if (range.intersectsNode(el)) this.markElement(el);
-            }
-        }
+        const marks = Doc.marksAt();
+        if (marks.has("bold")) DOM.boldBtn.classList.add("active");
+        if (marks.has("italic")) DOM.italicBtn.classList.add("active");
+        if (marks.has("underline")) DOM.underlineBtn.classList.add("active");
+        if (marks.has("strike")) DOM.strikeBtn.classList.add("active");
+        if (marks.has("code")) DOM.codeBtn.classList.add("active");
+        const bt = Doc.blockTypeAt();
+        if (bt === "h1") DOM.h1Btn.classList.add("active");
+        else if (bt === "h2") DOM.h2Btn.classList.add("active");
+        else if (bt === "h3") DOM.h3Btn.classList.add("active");
+        else if (bt === "h4") DOM.h4Btn.classList.add("active");
+        else if (bt === "h5") DOM.h5Btn.classList.add("active");
+        else if (bt === "h6") DOM.h6Btn.classList.add("active");
+        else if (bt === "ul") DOM.bulletBtn.classList.add("active");
+        else if (bt === "ol") DOM.numberBtn.classList.add("active");
+        else if (bt === "quote") DOM.quoteIncreaseBtn.classList.add("active");
     },
 
     markFormatsFrom(node) {

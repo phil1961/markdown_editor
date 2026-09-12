@@ -17,11 +17,9 @@ function setupEventListeners() {
         IconHighlighter.checkEditorFormats();
     });
     
-    DOM.preview.addEventListener('input', () => {
-        PreviewOps.syncToEditor();
-    });
     DOM.preview.addEventListener('keyup', () => IconHighlighter.checkPreviewFormats());
     DOM.preview.addEventListener('click', () => IconHighlighter.checkPreviewFormats());
+    DOM.preview.addEventListener('mouseup', () => IconHighlighter.checkPreviewFormats());
     DOM.preview.addEventListener('focus', () => {
         AppState.activePane = 'preview';
         IconHighlighter.checkPreviewFormats();
@@ -257,6 +255,9 @@ function init() {
     
     // Set up event listeners
     setupEventListeners();
+    PreviewOps.init();
+    Doc.load(DOM.editor.value || "");
+    DOM.preview.innerHTML = Doc.previewHTML();
     
     // Initialize scroll sync
     ScrollSyncManager.init(DOM.editor, DOM.previewContainer, DOM.trackBtn);
