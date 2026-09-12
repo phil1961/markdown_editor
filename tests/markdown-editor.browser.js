@@ -135,6 +135,45 @@ const launchArgs = [
     await frames();
     return box;
   };
+  const pointerAt = async (x, y, clickCount) => {
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y, button: "left", clickCount: 1 }, S);
+    for (const type of ["mousePressed", "mouseReleased"])
+      await cdp.send("Input.dispatchMouseEvent", { type, x, y, button: "left", clickCount }, S);
+  };
+  const dblclickWord = async (word) => {
+    const box = await evalJs(`(() => {
+      const preview = document.getElementById("preview");
+      const w = ${JSON.stringify(word)};
+      const walker = document.createTreeWalker(preview, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        const i = node.textContent.indexOf(w);
+        if (i < 0) continue;
+        const range = document.createRange();
+        range.setStart(node, i);
+        range.setEnd(node, i + w.length);
+        const r = range.getBoundingClientRect();
+        if (r.width < 1 || r.height < 1) continue;
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      }
+      return null;
+    })()`);
+    if (!box) throw new Error("word not found in preview: " + word);
+    await pointerAt(box.x, box.y, 1);
+    await pointerAt(box.x, box.y, 2);
+    await frames();
+    return box;
+  };
+  const previewState = async (tag, btn) => evalJs(`({
+    html: document.getElementById("preview").innerHTML,
+    text: document.getElementById("preview").innerText,
+    md: document.getElementById("editor").value,
+    tagText: (document.getElementById("preview").querySelector(${JSON.stringify(tag)}) || {}).textContent || "",
+    hasTag: !!document.getElementById("preview").querySelector(${JSON.stringify(tag)}),
+    btnActive: document.getElementById(${JSON.stringify(btn)}).classList.contains("active"),
+    selected: window.getSelection().toString(),
+    pane: AppState.activePane
+  })`);
   const shots = [];
   const shot = async (name, caption, selector, viewportOnly) => {
     let clip;
@@ -162,7 +201,7 @@ const launchArgs = [
     const boot = await evalJs("({ v: BUILD.version, editor: !!document.getElementById('editor'), preview: !!document.getElementById('preview'), editable: document.getElementById('preview').isContentEditable })");
     ok(/^\d+\.\d+/.test(boot.v), "BUILD.version reads " + boot.v);
     ok(boot.editor && boot.preview, "editor and preview exist");
-    ok(boot.editable === false, "preview is not contenteditable (revert that and this fails)");
+    ok(boot.editable === true, "preview is contenteditable so the right pane accepts typing");
     ok(errors.length === 0, "no exception during load", errors.join(" | "));
 
     G("Layout");
@@ -209,6 +248,159 @@ const launchArgs = [
     await frames();
     const closed = await evalJs("document.getElementById('linkModal').classList.contains('active')");
     ok(!closed, "Escape closes the link modal");
+
+    G("Preview pane: type, double-click a word, toggle bold/italic/underline");
+    await click("#viewBothBtn");
+    await click("#preview");
+    await evalJs("(() => { const p = document.getElementById('preview'); p.focus(); p.innerHTML = ''; AppState.activePane = 'preview'; })()");
+    await click("#preview");
+    await cdp.send("Input.insertText", { text: "alpha Widget omega" }, S);
+    await frames();
+    const typed = await evalJs("document.getElementById('preview').innerText");
+    ok(/Widget/.test(typed), "typed into the preview pane (" + JSON.stringify(typed) + ")");
+
+    const formats = [
+      { name: "bold", btn: "boldBtn", tag: "strong" },
+      { name: "italic", btn: "italicBtn", tag: "em" },
+      { name: "underline", btn: "underlineBtn", tag: "u" }
+    ];
+    for (const fmt of formats) {
+      await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = ''; p.focus(); AppState.activePane = 'preview'; })()");
+      await click("#preview");
+      await cdp.send("Input.insertText", { text: "alpha Widget omega" }, S);
+      await frames();
+
+      await dblclickWord("Widget");
+      const selected = await evalJs("window.getSelection().toString()");
+      ok(/Widget/.test(selected), fmt.name + ": double-click selects Widget (" + JSON.stringify(selected) + ")");
+
+      await click("#" + fmt.btn);
+      const on = await previewState(fmt.tag, fmt.btn);
+      ok(on.hasTag, fmt.name + ": button wraps Widget in <" + fmt.tag + ">", on.html);
+      ok(on.tagText === "Widget", fmt.name + ": wrapped text has no trailing space (" + JSON.stringify(on.tagText) + ")", on.html);
+      const spaced = { bold: "**Widget **", italic: "*Widget *", underline: "++Widget ++" };
+      const tight = { bold: "**Widget**", italic: "*Widget*", underline: "++Widget++" };
+      ok(!on.md.includes(spaced[fmt.name]) && on.md.includes(tight[fmt.name]),
+        fmt.name + ": raw pane keeps the space outside the markers", on.md);
+      ok(on.btnActive, fmt.name + ": toolbar button is highlighted after applying", JSON.stringify(on));
+      await shot("04-preview-" + fmt.name + "-on", "Preview after " + fmt.name + " applied to Widget.");
+
+      await dblclickWord("Widget");
+      const stillOn = await previewState(fmt.tag, fmt.btn);
+      ok(stillOn.btnActive, fmt.name + ": double-clicking the formatted word keeps the button highlighted", JSON.stringify(stillOn));
+
+      await click("#" + fmt.btn);
+      const off = await previewState(fmt.tag, fmt.btn);
+      ok(!off.hasTag, fmt.name + ": second click removes <" + fmt.tag + ">", off.html);
+      ok(!off.btnActive, fmt.name + ": toolbar button is unhighlighted after removing", JSON.stringify(off));
+      await shot("04-preview-" + fmt.name + "-off", "Preview after " + fmt.name + " removed from Widget.");
+    }
+
+    G("QC: bugs the toggle tests would not catch");
+    await click("#viewBothBtn");
+
+    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<p>hello</p>'; AppState.activePane = 'preview'; p.focus(); const r = document.createRange(); r.selectNodeContents(p.querySelector('p')); r.collapse(true); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); })()");
+    await click("#boldBtn");
+    const empty = await evalJs("({ strongs: [...document.querySelectorAll('#preview strong')].map(el => el.textContent) })");
+    ok(empty.strongs.length === 0, "collapsed caret does not insert an empty <strong>", JSON.stringify(empty));
+
+    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<p><strong>Widget</strong></p>'; AppState.activePane = 'preview'; const strong = p.querySelector('strong'); const r = document.createRange(); r.selectNode(strong); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); })()");
+    await click("#boldBtn");
+    const unwrapped = await evalJs("({ n: document.querySelectorAll('#preview strong').length, html: document.getElementById('preview').innerHTML, md: document.getElementById('editor').value })");
+    ok(unwrapped.n === 0, "selecting the <strong> itself toggles bold off (closest, not parent-only)", unwrapped.html);
+
+    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<p>alpha <strong>Widget</strong> omega</p>'; AppState.activePane = 'preview'; const r = document.createRange(); r.selectNodeContents(p.querySelector('strong')); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); IconHighlighter.checkPreviewFormats(); })()");
+    const lit = await evalJs("document.getElementById('boldBtn').classList.contains('active')");
+    ok(lit, "highlighter lights Bold while the caret is in <strong>");
+    await evalJs("window.getSelection().removeAllRanges(); IconHighlighter.checkPreviewFormats(); true");
+    const cleared = await evalJs("document.getElementById('boldBtn').classList.contains('active')");
+    ok(!cleared, "highlighter clears when the selection is gone");
+
+    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<p>alpha <strong>Widget</strong> omega</p>'; PreviewOps.syncToEditor(); })()");
+    const md = await evalJs("document.getElementById('editor').value");
+    ok(/\*\*Widget\*\*/.test(md), "preview <strong> round-trips to **Widget** in the editor", md);
+
+    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = '<table><thead><tr><th>A</th><th>B</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table>'; PreviewOps.syncToEditor(); })()");
+    const tableMd = await evalJs("document.getElementById('editor').value");
+    ok(/\| A \|/.test(tableMd) && /\| 1 \|/.test(tableMd), "a preview table round-trips to pipe markdown", tableMd);
+
+    G("QC: stacked formats — removing underline leaves the rest");
+    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = ''; p.focus(); AppState.activePane = 'preview'; })()");
+    await click("#preview");
+    await cdp.send("Input.insertText", { text: "abc" }, S);
+    await frames();
+    await dblclickWord("abc");
+    for (const id of ["boldBtn", "italicBtn", "strikeBtn", "underlineBtn"]) await click("#" + id);
+    const stacked = await evalJs("({ html: document.getElementById('preview').innerHTML, tags: ['strong','em','del','u'].filter(t => document.querySelector('#preview ' + t)) })");
+    ok(stacked.tags.length === 4, "bold+italic+strike+underline all applied", stacked.html);
+    await dblclickWord("abc");
+    await click("#underlineBtn");
+    const peeled = await evalJs(`({
+      html: document.getElementById('preview').innerHTML,
+      u: !!document.querySelector('#preview u'),
+      strong: !!document.querySelector('#preview strong'),
+      em: !!document.querySelector('#preview em'),
+      del: !!document.querySelector('#preview del'),
+      uBtn: document.getElementById('underlineBtn').classList.contains('active'),
+      bBtn: document.getElementById('boldBtn').classList.contains('active')
+    })`);
+    ok(!peeled.u && peeled.strong && peeled.em && peeled.del,
+      "underline gone, bold/italic/strike remain", peeled.html);
+    ok(!peeled.uBtn, "underline button is unhighlighted");
+    ok(peeled.bBtn, "bold button stays highlighted");
+
+    G("QC: peeling bold keeps italic/underline/strike highlighted");
+    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = ''; p.focus(); AppState.activePane = 'preview'; })()");
+    await click("#preview");
+    await cdp.send("Input.insertText", { text: "abc" }, S);
+    await frames();
+    await dblclickWord("abc");
+    for (const id of ["boldBtn", "italicBtn", "underlineBtn", "strikeBtn"]) await click("#" + id);
+    await dblclickWord("abc");
+    await click("#boldBtn");
+    const peeledBold = await evalJs(`({
+      html: document.getElementById('preview').innerHTML,
+      strong: !!document.querySelector('#preview strong'),
+      em: !!document.querySelector('#preview em'),
+      u: !!document.querySelector('#preview u'),
+      del: !!document.querySelector('#preview del'),
+      bBtn: document.getElementById('boldBtn').classList.contains('active'),
+      iBtn: document.getElementById('italicBtn').classList.contains('active'),
+      uBtn: document.getElementById('underlineBtn').classList.contains('active'),
+      sBtn: document.getElementById('strikeBtn').classList.contains('active')
+    })`);
+    ok(!peeledBold.strong && peeledBold.em && peeledBold.u && peeledBold.del,
+      "bold gone from the tree, other three remain", peeledBold.html);
+    ok(!peeledBold.bBtn, "bold button unhighlighted");
+    ok(peeledBold.iBtn && peeledBold.uBtn && peeledBold.sBtn,
+      "italic, underline and strike stay highlighted without re-clicking the word", JSON.stringify(peeledBold));
+
+    G("QC: H1 applies and toggles off");
+    await evalJs("(() => { const p = document.getElementById('preview'); p.innerHTML = ''; p.focus(); AppState.activePane = 'preview'; })()");
+    await click("#preview");
+    await cdp.send("Input.insertText", { text: "abc" }, S);
+    await frames();
+    await dblclickWord("abc");
+    await click("#h1Btn");
+    const h1on = await evalJs(`({
+      html: document.getElementById('preview').innerHTML,
+      md: document.getElementById('editor').value,
+      h1: !!document.querySelector('#preview h1'),
+      btn: document.getElementById('h1Btn').classList.contains('active')
+    })`);
+    ok(h1on.h1 && /^#\s*abc/m.test(h1on.md), "H1 applied in preview and raw pane", h1on.html + " | " + h1on.md);
+    ok(h1on.btn, "H1 button highlighted");
+    await dblclickWord("abc");
+    await click("#h1Btn");
+    const h1off = await evalJs(`({
+      html: document.getElementById('preview').innerHTML,
+      md: document.getElementById('editor').value,
+      h1: !!document.querySelector('#preview h1'),
+      btn: document.getElementById('h1Btn').classList.contains('active')
+    })`);
+    ok(!h1off.h1, "second H1 click removes the heading", h1off.html);
+    ok(!/^#\s/m.test(h1off.md.trim()), "raw pane no longer has a heading marker", h1off.md);
+    ok(!h1off.btn, "H1 button unhighlighted");
 
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {

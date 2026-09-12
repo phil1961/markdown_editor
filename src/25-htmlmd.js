@@ -34,15 +34,15 @@ const HtmlToMarkdown = {
         switch (tag) {
             case 'strong':
             case 'b':
-                return `**${content}**`;
+                return this.wrapInline('**', content);
             case 'em':
             case 'i':
-                return `*${content}*`;
+                return this.wrapInline('*', content);
             case 'u':
-                return `++${content}++`;
+                return this.wrapInline('++', content);
             case 'del':
             case 's':
-                return `~~${content}~~`;
+                return this.wrapInline('~~', content);
             case 'h1':
                 return `# ${content}\n\n`;
             case 'h2':
@@ -82,9 +82,29 @@ const HtmlToMarkdown = {
                 return this.convertList(el, 'ol');
             case 'li':
                 return content;
+            case 'table':
+                return this.convertTable(el);
+            case 'thead':
+            case 'tbody':
+            case 'tr':
+            case 'th':
+            case 'td':
+                return content;
+            case 'div':
+                return content + (content.endsWith('\n') ? '' : '\n');
             default:
                 return content;
         }
+    },
+
+    /* Keep leading/trailing spaces outside the markers so
+       <strong>Widget </strong> becomes **Widget** not **Widget **. */
+    wrapInline(marker, content) {
+        const lead = content.match(/^\s*/)[0];
+        const trail = content.match(/\s*$/)[0];
+        const core = content.slice(lead.length, content.length - trail.length);
+        if (!core) return content;
+        return lead + marker + core + marker + trail;
     },
     
     convertBlockquote(el, depth = 1) {
@@ -131,6 +151,21 @@ const HtmlToMarkdown = {
         return result;
     },
     
+    convertTable(el) {
+        const rows = Array.from(el.querySelectorAll('tr'));
+        if (!rows.length) return '';
+        const cells = row => Array.from(row.querySelectorAll('th,td'))
+            .map(c => this.processNode(c).replace(/\|/g, '\\|').trim());
+        const header = cells(rows[0]);
+        if (!header.length) return '';
+        let md = '| ' + header.join(' | ') + ' |\n';
+        md += '| ' + header.map(() => '---').join(' | ') + ' |\n';
+        for (let i = 1; i < rows.length; i++) {
+            md += '| ' + cells(rows[i]).join(' | ') + ' |\n';
+        }
+        return md + '\n';
+    },
+
     convertList(el, type) {
         let result = '';
         let index = 1;

@@ -17,8 +17,20 @@ function setupEventListeners() {
         IconHighlighter.checkEditorFormats();
     });
     
-    DOM.preview.addEventListener('click', () => {
-        AppState.activePane = 'editor';
+    DOM.preview.addEventListener('input', () => {
+        PreviewOps.syncToEditor();
+    });
+    DOM.preview.addEventListener('keyup', () => IconHighlighter.checkPreviewFormats());
+    DOM.preview.addEventListener('click', () => IconHighlighter.checkPreviewFormats());
+    DOM.preview.addEventListener('focus', () => {
+        AppState.activePane = 'preview';
+        IconHighlighter.checkPreviewFormats();
+    });
+
+    /* Keep the preview/editor selection when clicking a toolbar button.
+       Without this, mousedown focuses the button and the format is a no-op. */
+    document.querySelector('.toolbar').addEventListener('mousedown', (e) => {
+        if (e.target.closest('button')) e.preventDefault();
     });
     
     // File Menu
@@ -189,8 +201,10 @@ function setupEventListeners() {
 function handleFormat(format) {
     const inlineFormats = ['bold', 'italic', 'underline', 'strike', 'code'];
     const blockFormats = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'bullet', 'number', 'quoteIncrease', 'quoteDecrease', 'codeBlock', 'hr'];
-    DOM.editor.focus();
-    AppState.activePane = 'editor';
+    if (AppState.activePane === 'preview') {
+        PreviewOps.applyFormat(format);
+        return;
+    }
     if (inlineFormats.includes(format)) {
         EditorOps.applyInlineFormat(format);
     } else if (blockFormats.includes(format)) {

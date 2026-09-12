@@ -453,12 +453,14 @@
             z-index: 1000;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.2s ease;
+            pointer-events: none;
+            transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
         }
         
         .modal-overlay.active {
             opacity: 1;
             visibility: visible;
+            pointer-events: auto;
         }
         
         .modal {
@@ -1010,7 +1012,7 @@
         <div class="pane">
             <div class="pane-header">Preview (Rendered)</div>
             <div class="pane-content" id="previewContainer">
-                <div id="preview"></div>
+                <div id="preview" contenteditable="true"></div>
             </div>
         </div>
     </div>
@@ -1107,14 +1109,14 @@
    Header, document.title and logs read BUILD.version.
    ========================================================================= */
 const BUILD = {
-  version:  "1.1.0",
+  version:  "1.1.1",
   released: "11 September 2026",
   /* Stamped by build.js at compile time as a military DTG (DDHHMMZ MON YY,
      Zulu). The source carries a placeholder; the assembler substitutes the
      moment of the build and restamps only when the rest of the file actually
      changed, so rebuilding an unchanged tree does not churn it, and
      `build.js --check` ignores this one line when it diffs. */
-  compiled: "120356Z SEP 26",
+  compiled: "120440Z SEP 26",
   corrections: [
     ["Fenced code and nested quotes were rewritten by later regexes",
      "Fences are extracted before inlines run; all leading &gt; markers are restored so >> nests; href/src quotes are escaped and javascript:/data: URLs are dropped."],
@@ -1124,8 +1126,8 @@ const BUILD = {
      "File → Download and Ctrl+S download a copy. file:// cannot overwrite the path Explorer opened."],
     ["Custom undo history was recorded and never consumed",
      "Dead AppState.history is gone. Format helpers use setRangeText so native textarea undo survives Bold."],
-    ["Preview was a second editor that destroyed tables",
-     "The preview pane is read-only. Toolbar formats apply to the markdown textarea."]
+    ["Preview editing was briefly disabled",
+     "The right pane is contenteditable again. Typing there syncs back to markdown."]
   ]
 };
 
@@ -1498,15 +1500,15 @@ const HtmlToMarkdown = {
         switch (tag) {
             case 'strong':
             case 'b':
-                return `**${content}**`;
+                return this.wrapInline('**', content);
             case 'em':
             case 'i':
-                return `*${content}*`;
+                return this.wrapInline('*', content);
             case 'u':
-                return `++${content}++`;
+                return this.wrapInline('++', content);
             case 'del':
             case 's':
-                return `~~${content}~~`;
+                return this.wrapInline('~~', content);
             case 'h1':
                 return `# ${content}\n\n`;
             case 'h2':
@@ -1546,9 +1548,29 @@ const HtmlToMarkdown = {
                 return this.convertList(el, 'ol');
             case 'li':
                 return content;
+            case 'table':
+                return this.convertTable(el);
+            case 'thead':
+            case 'tbody':
+            case 'tr':
+            case 'th':
+            case 'td':
+                return content;
+            case 'div':
+                return content + (content.endsWith('\n') ? '' : '\n');
             default:
                 return content;
         }
+    },
+
+    /* Keep leading/trailing spaces outside the markers so
+       <strong>Widget </strong> becomes **Widget** not **Widget **. */
+    wrapInline(marker, content) {
+        const lead = content.match(/^\s*/)[0];
+        const trail = content.match(/\s*$/)[0];
+        const core = content.slice(lead.length, content.length - trail.length);
+        if (!core) return content;
+        return lead + marker + core + marker + trail;
     },
     
     convertBlockquote(el, depth = 1) {
@@ -1595,6 +1617,21 @@ const HtmlToMarkdown = {
         return result;
     },
     
+    convertTable(el) {
+        const rows = Array.from(el.querySelectorAll('tr'));
+        if (!rows.length) return '';
+        const cells = row => Array.from(row.querySelectorAll('th,td'))
+            .map(c => this.processNode(c).replace(/\|/g, '\\|').trim());
+        const header = cells(rows[0]);
+        if (!header.length) return '';
+        let md = '| ' + header.join(' | ') + ' |\n';
+        md += '| ' + header.map(() => '---').join(' | ') + ' |\n';
+        for (let i = 1; i < rows.length; i++) {
+            md += '| ' + cells(rows[i]).join(' | ') + ' |\n';
+        }
+        return md + '\n';
+    },
+
     convertList(el, type) {
         let result = '';
         let index = 1;
@@ -1749,10 +1786,15 @@ const EditorOps = {
      */
     applyInlineFormat(format) {
         const editor = DOM.editor;
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
+        let start = editor.selectionStart;
+        let end = editor.selectionEnd;
         const text = editor.value;
+        while (start < end && /\s/.test(text[end - 1])) end--;
+        while (start < end && /\s/.test(text[start])) start++;
         const selected = text.substring(start, end);
+        if (!selected && editor.selectionStart !== editor.selectionEnd) {
+            return;
+        }
         
         let wrapper;
         switch (format) {
@@ -1806,9 +1848,10 @@ const EditorOps = {
                 const level = parseInt(format.substring(1));
                 const prefix = '#'.repeat(level) + ' ';
                 newLines = selectedLines.map(line => {
-                    // Remove existing header
-                    line = line.replace(/^#{1,6}\s*/, '');
-                    return prefix + line;
+                    const current = line.match(/^(#{1,6})\s/);
+                    const stripped = line.replace(/^#{1,6}\s*/, '');
+                    if (current && current[1].length === level) return stripped;
+                    return prefix + stripped;
                 });
                 break;
                 
@@ -1991,21 +2034,88 @@ const PreviewOps = {
             default: return;
         }
         
-        // Check if already formatted
-        const parentTag = range.commonAncestorContainer.parentElement;
-        if (parentTag && parentTag.tagName.toLowerCase() === tagName) {
-            // Remove formatting
-            const text = document.createTextNode(parentTag.textContent);
-            parentTag.parentNode.replaceChild(text, parentTag);
+        const aliases = { bold: ['strong', 'b'], italic: ['em', 'i'], underline: ['u'], strike: ['del', 's'], code: ['code'] };
+        const tags = aliases[format] || [tagName];
+        this.trimRangeWhitespace(range);
+
+        /* Use the start point, not commonAncestor: a double-click of a bold
+           word often still includes the following space, so the ancestor is
+           the parent of <strong> and closest() looking up misses the wrap. */
+        const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE
+            ? range.startContainer
+            : range.startContainer.parentElement;
+        let existing = startEl && tags
+            .map(t => startEl.closest(t))
+            .find(el => el && DOM.preview.contains(el) && el !== DOM.preview);
+        if (!existing && range.startContainer.nodeType === Node.ELEMENT_NODE) {
+            if (tags.includes(range.startContainer.tagName.toLowerCase())) {
+                existing = range.startContainer;
+            } else {
+                const node = range.startContainer.childNodes[range.startOffset];
+                if (node && node.nodeType === Node.ELEMENT_NODE && tags.includes(node.tagName.toLowerCase())) {
+                    existing = node;
+                }
+            }
+        }
+
+        const sel = window.getSelection();
+        if (existing) {
+            /* Lift children out. Flattening with textContent would destroy
+               nested bold/italic/strike when only underline is toggled off. */
+            const first = existing.firstChild;
+            const last = existing.lastChild;
+            const parent = existing.parentNode;
+            while (existing.firstChild) parent.insertBefore(existing.firstChild, existing);
+            parent.removeChild(existing);
+            if (first && last) {
+                const next = document.createRange();
+                if (first === last) next.selectNodeContents(first);
+                else {
+                    next.setStartBefore(first);
+                    next.setEndAfter(last);
+                }
+                sel.removeAllRanges();
+                sel.addRange(next);
+            }
         } else {
-            // Add formatting
+            if (range.collapsed) return;
             const wrapper = document.createElement(tagName);
             wrapper.appendChild(range.extractContents());
             range.insertNode(wrapper);
+            const next = document.createRange();
+            next.selectNodeContents(wrapper);
+            sel.removeAllRanges();
+            sel.addRange(next);
         }
-        
+
         this.syncToEditor();
+        IconHighlighter.checkPreviewFormats();
         Logger.info('Preview', `Applied ${format} formatting`);
+    },
+
+    /* Double-click in contenteditable often includes the trailing space.
+       Keep that space outside the <strong>/<em>/<u> so the raw pane gets
+       **Widget** not **Widget **. */
+    trimRangeWhitespace(range) {
+        let guard = 0;
+        while (!range.collapsed && /^\s/.test(range.toString()) && guard++ < 1000) {
+            const n = range.startContainer;
+            if (n.nodeType === Node.TEXT_NODE && range.startOffset < n.length) {
+                range.setStart(n, range.startOffset + 1);
+            } else if (n.nodeType === Node.ELEMENT_NODE && range.startOffset < n.childNodes.length) {
+                range.setStart(n.childNodes[range.startOffset], 0);
+            } else break;
+        }
+        guard = 0;
+        while (!range.collapsed && /\s$/.test(range.toString()) && guard++ < 1000) {
+            const n = range.endContainer;
+            if (n.nodeType === Node.TEXT_NODE && range.endOffset > 0) {
+                range.setEnd(n, range.endOffset - 1);
+            } else if (n.nodeType === Node.ELEMENT_NODE && range.endOffset > 0) {
+                const child = n.childNodes[range.endOffset - 1];
+                range.setEnd(child, child.nodeType === Node.TEXT_NODE ? child.length : child.childNodes.length);
+            } else break;
+        }
     },
     
     /**
@@ -2032,7 +2142,7 @@ const PreviewOps = {
             NodeFilter.SHOW_ELEMENT,
             {
                 acceptNode: (node) => {
-                    if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'UL', 'OL'].includes(node.tagName)) {
+                    if (['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'PRE', 'UL', 'OL'].includes(node.tagName)) {
                         return NodeFilter.FILTER_ACCEPT;
                     }
                     return NodeFilter.FILTER_SKIP;
@@ -2079,12 +2189,12 @@ const PreviewOps = {
             selectedBlocks.push(startBlock);
         }
         
-        // Apply formatting to each block
         for (const block of selectedBlocks) {
             this.formatBlock(block, format);
         }
-        
+
         this.syncToEditor();
+        IconHighlighter.checkPreviewFormats();
         Logger.info('Preview', `Applied ${format} to ${selectedBlocks.length} block(s)`);
     },
     
@@ -2092,42 +2202,48 @@ const PreviewOps = {
      * Find the nearest block-level element
      */
     findBlockElement(node) {
-        while (node && node !== DOM.preview) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                const tag = node.tagName.toLowerCase();
-                if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'ul', 'ol'].includes(tag)) {
-                    return node;
-                }
-            }
-            node = node.parentNode;
+        const blocks = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'ul', 'ol'];
+        if (node && node !== DOM.preview && !DOM.preview.contains(node)) {
+            const sel = window.getSelection();
+            node = sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
         }
-        // If no block parent found, wrap the text node in a <p>
-        if (node === DOM.preview) {
-            const selection = window.getSelection();
-            if (selection.rangeCount) {
-                const range = selection.getRangeAt(0);
-                const p = document.createElement('p');
-                // Find the top-level nodes in preview that intersect the selection
-                const children = Array.from(DOM.preview.childNodes);
-                let first = null, last = null;
-                for (const child of children) {
-                    if (range.intersectsNode(child)) {
-                        if (!first) first = child;
-                        last = child;
-                    }
-                }
-                if (first) {
-                    DOM.preview.insertBefore(p, first);
-                    let current = p.nextSibling;
-                    while (current) {
-                        const next = current.nextSibling;
-                        p.appendChild(current);
-                        if (current === last) break;
-                        current = next;
-                    }
-                    return p;
-                }
+        let walk = node;
+        while (walk && walk !== DOM.preview) {
+            if (walk.nodeType === Node.ELEMENT_NODE && blocks.includes(walk.tagName.toLowerCase())) {
+                return walk;
             }
+            walk = walk.parentNode;
+        }
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return null;
+        const range = sel.getRangeAt(0);
+        const children = Array.from(DOM.preview.childNodes);
+        for (const child of children) {
+            if (child.nodeType === Node.ELEMENT_NODE && blocks.includes(child.tagName.toLowerCase())
+                && range.intersectsNode(child)) {
+                return child;
+            }
+        }
+        let first = null, last = null;
+        for (const child of children) {
+            try {
+                if (range.intersectsNode(child)) {
+                    if (!first) first = child;
+                    last = child;
+                }
+            } catch (e) { /* detached */ }
+        }
+        if (first) {
+            const p = document.createElement('p');
+            DOM.preview.insertBefore(p, first);
+            let current = p.nextSibling;
+            while (current) {
+                const next = current.nextSibling;
+                p.appendChild(current);
+                if (current === last) break;
+                current = next;
+            }
+            return p;
         }
         return null;
     },
@@ -2170,9 +2286,14 @@ const PreviewOps = {
      * Convert block to header
      */
     convertToHeader(block, level) {
-        const newHeader = document.createElement(level);
-        newHeader.innerHTML = block.innerHTML;
-        block.parentNode.replaceChild(newHeader, block);
+        const next = document.createElement(block.tagName.toLowerCase() === level ? 'p' : level);
+        next.innerHTML = block.innerHTML;
+        block.parentNode.replaceChild(next, block);
+        const sel = window.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(next);
+        sel.removeAllRanges();
+        sel.addRange(r);
     },
     
     /**
@@ -2457,73 +2578,94 @@ const IconHighlighter = {
      */
     checkPreviewFormats() {
         const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-        
-        let node = selection.anchorNode;
-        if (!node || !DOM.preview.contains(node)) return;
-        
-        // Reset all buttons
+        if (!selection.rangeCount) {
+            this.resetButtons();
+            return;
+        }
+
+        const node = selection.anchorNode;
+        if (!node || !DOM.preview.contains(node)) {
+            this.resetButtons();
+            return;
+        }
+
         this.resetButtons();
-        
-        // Walk up the tree and check for formatting elements
-        while (node && node !== DOM.preview) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                const tag = node.tagName.toLowerCase();
-                
-                switch (tag) {
-                    case 'strong':
-                    case 'b':
-                        DOM.boldBtn.classList.add('active');
-                        break;
-                    case 'em':
-                    case 'i':
-                        DOM.italicBtn.classList.add('active');
-                        break;
-                    case 'u':
-                        DOM.underlineBtn.classList.add('active');
-                        break;
-                    case 'del':
-                    case 's':
-                        DOM.strikeBtn.classList.add('active');
-                        break;
-                    case 'code':
-                        DOM.codeBtn.classList.add('active');
-                        break;
-                    case 'h1':
-                        DOM.h1Btn.classList.add('active');
-                        break;
-                    case 'h2':
-                        DOM.h2Btn.classList.add('active');
-                        break;
-                    case 'h3':
-                        DOM.h3Btn.classList.add('active');
-                        break;
-                    case 'h4':
-                        DOM.h4Btn.classList.add('active');
-                        break;
-                    case 'h5':
-                        DOM.h5Btn.classList.add('active');
-                        break;
-                    case 'h6':
-                        DOM.h6Btn.classList.add('active');
-                        break;
-                    case 'li':
-                        const parent = node.parentElement;
-                        if (parent.tagName === 'UL') DOM.bulletBtn.classList.add('active');
-                        if (parent.tagName === 'OL') DOM.numberBtn.classList.add('active');
-                        break;
-                    case 'blockquote':
-                        DOM.quoteIncreaseBtn.classList.add('active');
-                        break;
-                    case 'a':
-                        DOM.linkBtn.classList.add('active');
-                        break;
-                    case 'img':
-                        DOM.imageBtn.classList.add('active');
-                        break;
-                }
+        const range = selection.getRangeAt(0);
+        this.markFormatsFrom(range.startContainer);
+        this.markFormatsFrom(range.endContainer);
+        /* After peeling an outer wrap, the selection is often the remaining
+           inner element (selectNodeContents). Walking up sees italic but not
+           underline/strike nested inside it. */
+        const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE
+            ? range.startContainer
+            : range.startContainer.parentElement;
+        if (startEl && startEl.nodeType === Node.ELEMENT_NODE && DOM.preview.contains(startEl)) {
+            for (const el of startEl.querySelectorAll('strong, b, em, i, u, del, s, code, h1, h2, h3, h4, h5, h6, li, blockquote, a, img')) {
+                if (range.intersectsNode(el)) this.markElement(el);
             }
+        }
+    },
+
+    markFormatsFrom(node) {
+        while (node && node !== DOM.preview) {
+            if (node.nodeType === Node.ELEMENT_NODE) this.markElement(node);
             node = node.parentNode;
+        }
+    },
+
+    markElement(el) {
+        switch (el.tagName.toLowerCase()) {
+            case 'strong':
+            case 'b':
+                DOM.boldBtn.classList.add('active');
+                break;
+            case 'em':
+            case 'i':
+                DOM.italicBtn.classList.add('active');
+                break;
+            case 'u':
+                DOM.underlineBtn.classList.add('active');
+                break;
+            case 'del':
+            case 's':
+                DOM.strikeBtn.classList.add('active');
+                break;
+            case 'code':
+                DOM.codeBtn.classList.add('active');
+                break;
+            case 'h1':
+                DOM.h1Btn.classList.add('active');
+                break;
+            case 'h2':
+                DOM.h2Btn.classList.add('active');
+                break;
+            case 'h3':
+                DOM.h3Btn.classList.add('active');
+                break;
+            case 'h4':
+                DOM.h4Btn.classList.add('active');
+                break;
+            case 'h5':
+                DOM.h5Btn.classList.add('active');
+                break;
+            case 'h6':
+                DOM.h6Btn.classList.add('active');
+                break;
+            case 'li': {
+                const parent = el.parentElement;
+                if (parent && parent.tagName === 'UL') DOM.bulletBtn.classList.add('active');
+                if (parent && parent.tagName === 'OL') DOM.numberBtn.classList.add('active');
+                break;
+            }
+            case 'blockquote':
+                DOM.quoteIncreaseBtn.classList.add('active');
+                break;
+            case 'a':
+                DOM.linkBtn.classList.add('active');
+                break;
+            case 'img':
+                DOM.imageBtn.classList.add('active');
+                break;
         }
     },
     
@@ -3101,8 +3243,20 @@ function setupEventListeners() {
         IconHighlighter.checkEditorFormats();
     });
     
-    DOM.preview.addEventListener('click', () => {
-        AppState.activePane = 'editor';
+    DOM.preview.addEventListener('input', () => {
+        PreviewOps.syncToEditor();
+    });
+    DOM.preview.addEventListener('keyup', () => IconHighlighter.checkPreviewFormats());
+    DOM.preview.addEventListener('click', () => IconHighlighter.checkPreviewFormats());
+    DOM.preview.addEventListener('focus', () => {
+        AppState.activePane = 'preview';
+        IconHighlighter.checkPreviewFormats();
+    });
+
+    /* Keep the preview/editor selection when clicking a toolbar button.
+       Without this, mousedown focuses the button and the format is a no-op. */
+    document.querySelector('.toolbar').addEventListener('mousedown', (e) => {
+        if (e.target.closest('button')) e.preventDefault();
     });
     
     // File Menu
@@ -3273,8 +3427,10 @@ function setupEventListeners() {
 function handleFormat(format) {
     const inlineFormats = ['bold', 'italic', 'underline', 'strike', 'code'];
     const blockFormats = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'bullet', 'number', 'quoteIncrease', 'quoteDecrease', 'codeBlock', 'hr'];
-    DOM.editor.focus();
-    AppState.activePane = 'editor';
+    if (AppState.activePane === 'preview') {
+        PreviewOps.applyFormat(format);
+        return;
+    }
     if (inlineFormats.includes(format)) {
         EditorOps.applyInlineFormat(format);
     } else if (blockFormats.includes(format)) {

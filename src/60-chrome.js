@@ -200,73 +200,94 @@ const IconHighlighter = {
      */
     checkPreviewFormats() {
         const selection = window.getSelection();
-        if (!selection.rangeCount) return;
-        
-        let node = selection.anchorNode;
-        if (!node || !DOM.preview.contains(node)) return;
-        
-        // Reset all buttons
+        if (!selection.rangeCount) {
+            this.resetButtons();
+            return;
+        }
+
+        const node = selection.anchorNode;
+        if (!node || !DOM.preview.contains(node)) {
+            this.resetButtons();
+            return;
+        }
+
         this.resetButtons();
-        
-        // Walk up the tree and check for formatting elements
-        while (node && node !== DOM.preview) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                const tag = node.tagName.toLowerCase();
-                
-                switch (tag) {
-                    case 'strong':
-                    case 'b':
-                        DOM.boldBtn.classList.add('active');
-                        break;
-                    case 'em':
-                    case 'i':
-                        DOM.italicBtn.classList.add('active');
-                        break;
-                    case 'u':
-                        DOM.underlineBtn.classList.add('active');
-                        break;
-                    case 'del':
-                    case 's':
-                        DOM.strikeBtn.classList.add('active');
-                        break;
-                    case 'code':
-                        DOM.codeBtn.classList.add('active');
-                        break;
-                    case 'h1':
-                        DOM.h1Btn.classList.add('active');
-                        break;
-                    case 'h2':
-                        DOM.h2Btn.classList.add('active');
-                        break;
-                    case 'h3':
-                        DOM.h3Btn.classList.add('active');
-                        break;
-                    case 'h4':
-                        DOM.h4Btn.classList.add('active');
-                        break;
-                    case 'h5':
-                        DOM.h5Btn.classList.add('active');
-                        break;
-                    case 'h6':
-                        DOM.h6Btn.classList.add('active');
-                        break;
-                    case 'li':
-                        const parent = node.parentElement;
-                        if (parent.tagName === 'UL') DOM.bulletBtn.classList.add('active');
-                        if (parent.tagName === 'OL') DOM.numberBtn.classList.add('active');
-                        break;
-                    case 'blockquote':
-                        DOM.quoteIncreaseBtn.classList.add('active');
-                        break;
-                    case 'a':
-                        DOM.linkBtn.classList.add('active');
-                        break;
-                    case 'img':
-                        DOM.imageBtn.classList.add('active');
-                        break;
-                }
+        const range = selection.getRangeAt(0);
+        this.markFormatsFrom(range.startContainer);
+        this.markFormatsFrom(range.endContainer);
+        /* After peeling an outer wrap, the selection is often the remaining
+           inner element (selectNodeContents). Walking up sees italic but not
+           underline/strike nested inside it. */
+        const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE
+            ? range.startContainer
+            : range.startContainer.parentElement;
+        if (startEl && startEl.nodeType === Node.ELEMENT_NODE && DOM.preview.contains(startEl)) {
+            for (const el of startEl.querySelectorAll('strong, b, em, i, u, del, s, code, h1, h2, h3, h4, h5, h6, li, blockquote, a, img')) {
+                if (range.intersectsNode(el)) this.markElement(el);
             }
+        }
+    },
+
+    markFormatsFrom(node) {
+        while (node && node !== DOM.preview) {
+            if (node.nodeType === Node.ELEMENT_NODE) this.markElement(node);
             node = node.parentNode;
+        }
+    },
+
+    markElement(el) {
+        switch (el.tagName.toLowerCase()) {
+            case 'strong':
+            case 'b':
+                DOM.boldBtn.classList.add('active');
+                break;
+            case 'em':
+            case 'i':
+                DOM.italicBtn.classList.add('active');
+                break;
+            case 'u':
+                DOM.underlineBtn.classList.add('active');
+                break;
+            case 'del':
+            case 's':
+                DOM.strikeBtn.classList.add('active');
+                break;
+            case 'code':
+                DOM.codeBtn.classList.add('active');
+                break;
+            case 'h1':
+                DOM.h1Btn.classList.add('active');
+                break;
+            case 'h2':
+                DOM.h2Btn.classList.add('active');
+                break;
+            case 'h3':
+                DOM.h3Btn.classList.add('active');
+                break;
+            case 'h4':
+                DOM.h4Btn.classList.add('active');
+                break;
+            case 'h5':
+                DOM.h5Btn.classList.add('active');
+                break;
+            case 'h6':
+                DOM.h6Btn.classList.add('active');
+                break;
+            case 'li': {
+                const parent = el.parentElement;
+                if (parent && parent.tagName === 'UL') DOM.bulletBtn.classList.add('active');
+                if (parent && parent.tagName === 'OL') DOM.numberBtn.classList.add('active');
+                break;
+            }
+            case 'blockquote':
+                DOM.quoteIncreaseBtn.classList.add('active');
+                break;
+            case 'a':
+                DOM.linkBtn.classList.add('active');
+                break;
+            case 'img':
+                DOM.imageBtn.classList.add('active');
+                break;
         }
     },
     

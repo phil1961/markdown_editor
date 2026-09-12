@@ -122,10 +122,15 @@ const EditorOps = {
      */
     applyInlineFormat(format) {
         const editor = DOM.editor;
-        const start = editor.selectionStart;
-        const end = editor.selectionEnd;
+        let start = editor.selectionStart;
+        let end = editor.selectionEnd;
         const text = editor.value;
+        while (start < end && /\s/.test(text[end - 1])) end--;
+        while (start < end && /\s/.test(text[start])) start++;
         const selected = text.substring(start, end);
+        if (!selected && editor.selectionStart !== editor.selectionEnd) {
+            return;
+        }
         
         let wrapper;
         switch (format) {
@@ -179,9 +184,10 @@ const EditorOps = {
                 const level = parseInt(format.substring(1));
                 const prefix = '#'.repeat(level) + ' ';
                 newLines = selectedLines.map(line => {
-                    // Remove existing header
-                    line = line.replace(/^#{1,6}\s*/, '');
-                    return prefix + line;
+                    const current = line.match(/^(#{1,6})\s/);
+                    const stripped = line.replace(/^#{1,6}\s*/, '');
+                    if (current && current[1].length === level) return stripped;
+                    return prefix + stripped;
                 });
                 break;
                 

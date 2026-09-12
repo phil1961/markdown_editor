@@ -40,21 +40,88 @@ const PreviewOps = {
             default: return;
         }
         
-        // Check if already formatted
-        const parentTag = range.commonAncestorContainer.parentElement;
-        if (parentTag && parentTag.tagName.toLowerCase() === tagName) {
-            // Remove formatting
-            const text = document.createTextNode(parentTag.textContent);
-            parentTag.parentNode.replaceChild(text, parentTag);
+        const aliases = { bold: ['strong', 'b'], italic: ['em', 'i'], underline: ['u'], strike: ['del', 's'], code: ['code'] };
+        const tags = aliases[format] || [tagName];
+        this.trimRangeWhitespace(range);
+
+        /* Use the start point, not commonAncestor: a double-click of a bold
+           word often still includes the following space, so the ancestor is
+           the parent of <strong> and closest() looking up misses the wrap. */
+        const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE
+            ? range.startContainer
+            : range.startContainer.parentElement;
+        let existing = startEl && tags
+            .map(t => startEl.closest(t))
+            .find(el => el && DOM.preview.contains(el) && el !== DOM.preview);
+        if (!existing && range.startContainer.nodeType === Node.ELEMENT_NODE) {
+            if (tags.includes(range.startContainer.tagName.toLowerCase())) {
+                existing = range.startContainer;
+            } else {
+                const node = range.startContainer.childNodes[range.startOffset];
+                if (node && node.nodeType === Node.ELEMENT_NODE && tags.includes(node.tagName.toLowerCase())) {
+                    existing = node;
+                }
+            }
+        }
+
+        const sel = window.getSelection();
+        if (existing) {
+            /* Lift children out. Flattening with textContent would destroy
+               nested bold/italic/strike when only underline is toggled off. */
+            const first = existing.firstChild;
+            const last = existing.lastChild;
+            const parent = existing.parentNode;
+            while (existing.firstChild) parent.insertBefore(existing.firstChild, existing);
+            parent.removeChild(existing);
+            if (first && last) {
+                const next = document.createRange();
+                if (first === last) next.selectNodeContents(first);
+                else {
+                    next.setStartBefore(first);
+                    next.setEndAfter(last);
+                }
+                sel.removeAllRanges();
+                sel.addRange(next);
+            }
         } else {
-            // Add formatting
+            if (range.collapsed) return;
             const wrapper = document.createElement(tagName);
             wrapper.appendChild(range.extractContents());
             range.insertNode(wrapper);
+            const next = document.createRange();
+            next.selectNodeContents(wrapper);
+            sel.removeAllRanges();
+            sel.addRange(next);
         }
-        
+
         this.syncToEditor();
+        IconHighlighter.checkPreviewFormats();
         Logger.info('Preview', `Applied ${format} formatting`);
+    },
+
+    /* Double-click in contenteditable often includes the trailing space.
+       Keep that space outside the <strong>/<em>/<u> so the raw pane gets
+       **Widget** not **Widget **. */
+    trimRangeWhitespace(range) {
+        let guard = 0;
+        while (!range.collapsed && /^\s/.test(range.toString()) && guard++ < 1000) {
+            const n = range.startContainer;
+            if (n.nodeType === Node.TEXT_NODE && range.startOffset < n.length) {
+                range.setStart(n, range.startOffset + 1);
+            } else if (n.nodeType === Node.ELEMENT_NODE && range.startOffset < n.childNodes.length) {
+                range.setStart(n.childNodes[range.startOffset], 0);
+            } else break;
+        }
+        guard = 0;
+        while (!range.collapsed && /\s$/.test(range.toString()) && guard++ < 1000) {
+            const n = range.endContainer;
+            if (n.nodeType === Node.TEXT_NODE && range.endOffset > 0) {
+                range.setEnd(n, range.endOffset - 1);
+            } else if (n.nodeType === Node.ELEMENT_NODE && range.endOffset > 0) {
+                const child = n.childNodes[range.endOffset - 1];
+                range.setEnd(child, child.nodeType === Node.TEXT_NODE ? child.length : child.childNodes.length);
+            } else break;
+        }
     },
     
     /**
@@ -81,7 +148,7 @@ const PreviewOps = {
             NodeFilter.SHOW_ELEMENT,
             {
                 acceptNode: (node) => {
-                    if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'UL', 'OL'].includes(node.tagName)) {
+                    if (['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'PRE', 'UL', 'OL'].includes(node.tagName)) {
                         return NodeFilter.FILTER_ACCEPT;
                     }
                     return NodeFilter.FILTER_SKIP;
@@ -128,12 +195,12 @@ const PreviewOps = {
             selectedBlocks.push(startBlock);
         }
         
-        // Apply formatting to each block
         for (const block of selectedBlocks) {
             this.formatBlock(block, format);
         }
-        
+
         this.syncToEditor();
+        IconHighlighter.checkPreviewFormats();
         Logger.info('Preview', `Applied ${format} to ${selectedBlocks.length} block(s)`);
     },
     
@@ -141,42 +208,48 @@ const PreviewOps = {
      * Find the nearest block-level element
      */
     findBlockElement(node) {
-        while (node && node !== DOM.preview) {
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                const tag = node.tagName.toLowerCase();
-                if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'ul', 'ol'].includes(tag)) {
-                    return node;
-                }
-            }
-            node = node.parentNode;
+        const blocks = ['p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'ul', 'ol'];
+        if (node && node !== DOM.preview && !DOM.preview.contains(node)) {
+            const sel = window.getSelection();
+            node = sel.rangeCount ? sel.getRangeAt(0).startContainer : null;
         }
-        // If no block parent found, wrap the text node in a <p>
-        if (node === DOM.preview) {
-            const selection = window.getSelection();
-            if (selection.rangeCount) {
-                const range = selection.getRangeAt(0);
-                const p = document.createElement('p');
-                // Find the top-level nodes in preview that intersect the selection
-                const children = Array.from(DOM.preview.childNodes);
-                let first = null, last = null;
-                for (const child of children) {
-                    if (range.intersectsNode(child)) {
-                        if (!first) first = child;
-                        last = child;
-                    }
-                }
-                if (first) {
-                    DOM.preview.insertBefore(p, first);
-                    let current = p.nextSibling;
-                    while (current) {
-                        const next = current.nextSibling;
-                        p.appendChild(current);
-                        if (current === last) break;
-                        current = next;
-                    }
-                    return p;
-                }
+        let walk = node;
+        while (walk && walk !== DOM.preview) {
+            if (walk.nodeType === Node.ELEMENT_NODE && blocks.includes(walk.tagName.toLowerCase())) {
+                return walk;
             }
+            walk = walk.parentNode;
+        }
+        const sel = window.getSelection();
+        if (!sel.rangeCount) return null;
+        const range = sel.getRangeAt(0);
+        const children = Array.from(DOM.preview.childNodes);
+        for (const child of children) {
+            if (child.nodeType === Node.ELEMENT_NODE && blocks.includes(child.tagName.toLowerCase())
+                && range.intersectsNode(child)) {
+                return child;
+            }
+        }
+        let first = null, last = null;
+        for (const child of children) {
+            try {
+                if (range.intersectsNode(child)) {
+                    if (!first) first = child;
+                    last = child;
+                }
+            } catch (e) { /* detached */ }
+        }
+        if (first) {
+            const p = document.createElement('p');
+            DOM.preview.insertBefore(p, first);
+            let current = p.nextSibling;
+            while (current) {
+                const next = current.nextSibling;
+                p.appendChild(current);
+                if (current === last) break;
+                current = next;
+            }
+            return p;
         }
         return null;
     },
@@ -219,9 +292,14 @@ const PreviewOps = {
      * Convert block to header
      */
     convertToHeader(block, level) {
-        const newHeader = document.createElement(level);
-        newHeader.innerHTML = block.innerHTML;
-        block.parentNode.replaceChild(newHeader, block);
+        const next = document.createElement(block.tagName.toLowerCase() === level ? 'p' : level);
+        next.innerHTML = block.innerHTML;
+        block.parentNode.replaceChild(next, block);
+        const sel = window.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(next);
+        sel.removeAllRanges();
+        sel.addRange(r);
     },
     
     /**

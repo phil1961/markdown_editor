@@ -5,7 +5,7 @@
    Header, document.title and logs read BUILD.version.
    ========================================================================= */
 const BUILD = {
-  version:  "1.1.0",
+  version:  "1.1.1",
   released: "11 September 2026",
   /* Stamped by build.js at compile time as a military DTG (DDHHMMZ MON YY,
      Zulu). The source carries a placeholder; the assembler substitutes the
@@ -22,7 +22,7 @@ const BUILD = {
      "File → Download and Ctrl+S download a copy. file:// cannot overwrite the path Explorer opened."],
     ["Custom undo history was recorded and never consumed",
      "Dead AppState.history is gone. Format helpers use setRangeText so native textarea undo survives Bold."],
-    ["Preview was a second editor that destroyed tables",
-     "The preview pane is read-only. Toolbar formats apply to the markdown textarea."]
+    ["Preview editing was briefly disabled",
+     "The right pane is contenteditable again. Typing there syncs back to markdown."]
   ]
 };

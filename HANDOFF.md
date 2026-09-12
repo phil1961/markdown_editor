@@ -21,7 +21,7 @@ src/20-parser.js    MarkdownParser (pure; in dist)
 src/25-htmlmd.js    HtmlToMarkdown  @requires-dom
 src/30-state.js     AppState
 src/40-editor.js    TableOps + EditorOps  @requires-dom
-src/50-preview.js   PreviewOps (dormant; preview is read-only)  @requires-dom
+src/50-preview.js   PreviewOps  @requires-dom
 src/60-chrome.js    ScrollSync, ViewMode, IconHighlighter  @requires-dom
 src/70-file.js      FileOps + DragDrop  @requires-dom
 src/80-modals.js    ModalOps  @requires-dom
@@ -34,17 +34,15 @@ build.js            assembler → markdown-editor.html + dist/editor.cjs
 
 ## What this session did
 
-- Launcher uses `$PSScriptRoot`, opens blank with no args, injects `MD_PAYLOAD` via `ConvertTo-Json`, writes the temp copy under `%TEMP%`.
-- Context menu is `SystemFileAssociations\.md\shell\MarkdownEditor` only — it does not hijack the default opener. Uninstall deletes that verb only. `markdown-editor.ps1 -Install` / `-Uninstall`.
 - Page split into numbered modules. `build.js --check` is the stale-artifact gate.
 - Parser: fences extracted out of band, all leading `&gt;` restored, `href`/`src` escaped, `javascript:`/`data:` dropped, `_snake_case_` is not italic.
 - Quote+ prepends `>` onto an existing quote prefix.
-- Preview is read-only. File → Download. Native textarea undo; dead `AppState.history` removed. `setRangeText` in format helpers.
+- File → Download. Native textarea undo; dead `AppState.history` removed. `setRangeText` in format helpers. Preview pane is editable and syncs back to markdown.
 - Ctrl+Shift+L toggles the log panel.
 - Tests: parser fixtures in Node; CDP browser check copied from the wealth model (no npm).
 
 ## Open
 
-- Real save-back to the Explorer path needs something other than `file://` (out of scope).
-- `src/50-preview.js` is unused while preview is read-only. Delete it if that decision holds.
+- Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is a later addition. Leave those files alone until that work starts.
+- HtmlToMarkdown still has no table round-trip; editing a table in the preview can flatten it.
 - Root `.gitignore` was ACL-locked RX-only on the machine that did this re-org (Charleston leftover). If `git status` still shows `md_editor_launch.html`, grant the working user Modify on `.gitignore` and replace it; local excludes are in `.git/info/exclude`.
