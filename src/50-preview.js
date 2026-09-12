@@ -9,6 +9,21 @@ const PreviewOps = {
         DOM.preview.addEventListener("beforeinput", e => this.onBeforeInput(e));
         DOM.preview.addEventListener("keydown", e => this.onKeyDown(e));
         DOM.preview.addEventListener("paste", e => this.onPaste(e));
+        DOM.preview.addEventListener("mousedown", e => this.onMouseDown(e));
+    },
+
+    onMouseDown(e) {
+        const last = DOM.preview.lastElementChild;
+        if (!last) return;
+        const below = e.clientY > last.getBoundingClientRect().bottom + 2;
+        const onChrome = e.target === DOM.preview;
+        if (!below && !onChrome) return;
+        if (last.contains(e.target) && !below) return;
+        e.preventDefault();
+        AppState.activePane = "preview";
+        Doc.landAtEnd();
+        DOM.preview.focus();
+        syncFromDoc("preview");
     },
 
     runOp(op) {

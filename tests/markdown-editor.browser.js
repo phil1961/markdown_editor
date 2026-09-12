@@ -464,7 +464,7 @@ const launchArgs = [
     ok(/^1\.\s*abc\n2\.\s*one\n3\.\s*two/.test(numbered.md), "raw pane is 1. 2. 3.", numbered.md);
     ok(await evalJs("document.getElementById('numberBtn').classList.contains('active')"), "number button is highlighted");
 
-    await evalJs("(() => { const n = Doc.totalLen(); Doc.setSelection(n, n); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await evalJs("(() => { const n = Doc.totalLen(); const last = Doc.get().blocks[Doc.get().blocks.length - 1]; const at = last && last.type === 'p' && !(last.inlines || []).some(r => r.text) ? Math.max(0, n - 1) : n; Doc.setSelection(at, at); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
     await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
     await cdp.send("Input.dispatchKeyEvent", { type: "char", text: "\r", unmodifiedText: "\r", windowsVirtualKeyCode: 13 }, S);
     await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
@@ -562,6 +562,29 @@ const launchArgs = [
     })()`);
     ok(!qExit.emptyInQuote, "the quote does not keep a blank indented line", qExit.html);
     ok(qExit.afterTag === "P", "Enter after the quoted text starts a paragraph outside the quote", JSON.stringify(qExit));
+
+    G("QC: click below the last line lands outside the last block");
+    await loadMd("abc");
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#quoteIncreaseBtn");
+    const below = await evalJs(`(() => {
+      const preview = document.getElementById("preview");
+      const bq = preview.querySelector("blockquote");
+      const pr = preview.getBoundingClientRect();
+      const br = bq.getBoundingClientRect();
+      return { x: pr.left + 48, y: Math.min(br.bottom + 28, pr.bottom - 12), room: pr.bottom - br.bottom };
+    })()`);
+    ok(below.room > 10, "the pane has space below the last quoted line", JSON.stringify(below));
+    await pointerAt(below.x, below.y, 1);
+    await frames();
+    await cdp.send("Input.insertText", { text: "out" }, S);
+    await frames();
+    const landed = await evalJs(`({
+      md: document.getElementById("editor").value,
+      html: document.getElementById("preview").innerHTML,
+      inQuote: !!(document.querySelector("#preview blockquote") && document.querySelector("#preview blockquote").textContent.indexOf("out") >= 0)
+    })`);
+    ok(/out/.test(landed.md) && !landed.inQuote, "a click below the last line types outside the quote", JSON.stringify(landed));
 
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {

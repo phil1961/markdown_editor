@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.5",
+  version:  "1.2.6",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -21,6 +21,9 @@ const BUILD = {
     ["Could not indent one line further inside an already-quoted block",
      ">+ / >- now apply to the selected inner lines, not always the whole quote."],
     ["Enter at the end of a quote left a blank indented line at the bottom",
-     "Enter at the end of a quote (or on an empty quoted line) leaves the quote."]
+     "Enter at the end of a quote (or on an empty quoted line) leaves the quote."],
+    ["Could not click below the last line of the preview to put the caret there",
+     "After a quote, heading, or list there is a landing paragraph. Clicks in "
+     + "the empty space of the pane go there. It is not written into the file."]
   ]
 };

@@ -144,6 +144,31 @@ const Doc = (() => {
         while (list.length > 1 && isEmptyBlock(list[list.length - 1])) list.pop();
         return list;
     }
+    function exportBlocks(doc) {
+        const blocks = ((doc || state).blocks || []).slice();
+        while (blocks.length > 1 && blocks[blocks.length - 1].type === "p" && isEmptyBlock(blocks[blocks.length - 1])) {
+            blocks.pop();
+        }
+        return blocks;
+    }
+    function ensureTrail() {
+        if (!state.blocks.length) {
+            state = empty();
+            return true;
+        }
+        const last = state.blocks[state.blocks.length - 1];
+        if (last.type === "p") return false;
+        state.blocks.push({ type: "p", inlines: [] });
+        return true;
+    }
+    function landAtEnd() {
+        ensureTrail();
+        const ix = index(state);
+        const last = ix[ix.length - 1];
+        const at = last ? last.from : 0;
+        setSelection(at, at);
+        return sel;
+    }
     function splitInlinesAt(ins, offset) {
         const split = splitInlines(ins, offset);
         const left = [], right = [];
@@ -392,8 +417,7 @@ const Doc = (() => {
     }
 
     function toMarkdown(doc) {
-        doc = doc || state;
-        return (doc.blocks || []).map(serBlock).join("\n\n");
+        return exportBlocks(doc || state).map(serBlock).join("\n\n");
     }
 
     /* ---- HTML render ----------------------------------------------------- */
@@ -483,10 +507,10 @@ const Doc = (() => {
         }
     }
     function html(doc) {
-        doc = doc || state;
-        return (doc.blocks || []).map(b => renderBlock(b, 0, false)).join("\n");
+        return exportBlocks(doc || state).map(b => renderBlock(b, 0, false)).join("\n");
     }
     function previewHTML(doc) {
+        if (doc === undefined || doc === state) ensureTrail();
         doc = doc || state;
         const ix = index(doc);
         return (doc.blocks || []).map((b, i) => renderBlock(b, ix[i] ? ix[i].from : 0, true)).join("\n");
@@ -712,7 +736,8 @@ const Doc = (() => {
         let base = 0;
         const { from, to } = sel;
         for (;;) {
-            const hit = overlappingIn(blocks, from, to, base);
+            const hit = overlappingIn(blocks, from, to, base)
+                .filter(b => !(blocks[b.i] && blocks[b.i].type === "p" && isEmptyBlock(blocks[b.i])));
             if (hit.length === 1 && blocks[hit[0].i] && blocks[hit[0].i].type === "quote"
                 && (blocks[hit[0].i].blocks || []).length) {
                 parentBlocks = blocks;
@@ -733,6 +758,7 @@ const Doc = (() => {
         while (last > first && isEmptyBlock(t.blocks[last])) last--;
         const inner = dropTrailingEmpty(t.blocks.slice(first, last + 1));
         t.blocks.splice(first, last - first + 1, { type: "quote", blocks: inner });
+        ensureTrail();
     }
 
     function outdentQuote() {
@@ -759,6 +785,7 @@ const Doc = (() => {
         replacement.push(...lifted);
         if (after.length) replacement.push({ type: "quote", blocks: after });
         t.parentBlocks.splice(t.parentIndex, 1, ...replacement);
+        ensureTrail();
     }
 
     function runAt(pos) {
@@ -1069,12 +1096,17 @@ const Doc = (() => {
         const empty = c.block && c.block.inlines && !inlinesText(c.block.inlines);
         if (empty) quote.blocks.splice(c.i, 1);
         const para = { type: "p", inlines: [] };
+        let target;
         if (!(quote.blocks && quote.blocks.length)) {
             parent.splice(qi, 1, para);
+            target = para;
+        } else if (parent[qi + 1] && parent[qi + 1].type === "p" && isEmptyBlock(parent[qi + 1])) {
+            target = parent[qi + 1];
         } else {
             parent.splice(qi + 1, 0, para);
+            target = para;
         }
-        const at = blockStart(para);
+        const at = blockStart(target);
         setSelection(at < 0 ? totalLen(state) : at);
     }
 
@@ -1132,6 +1164,7 @@ const Doc = (() => {
 
     function load(md) {
         state = parse(md);
+        ensureTrail();
         const n = totalLen(state);
         sel = { from: clamp(sel.from, 0, n), to: clamp(sel.to, 0, n) };
         return state;
@@ -1212,6 +1245,7 @@ const Doc = (() => {
         toggleMark, toggleBlock, indentQuote, outdentQuote,
         insertText, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
         marksAt, blockTypeAt, totalLen: () => totalLen(state),
+        ensureTrail, landAtEnd,
         readPreviewSelection, restorePreviewSelection,
         MARK_TAG, TAG_MARK
     };

@@ -88,5 +88,7 @@ Inside an existing quote, select a subset of lines and `>+` / `>-` apply to
 those lines only, not the whole block.
 Enter at the end of a quote (or on a blank quoted line) leaves the quote
 instead of adding a blank indented line at the bottom.
+Clicks in the empty space below the last line of the preview land in a
+trailing paragraph (after a quote, heading, or list). That pad is not saved.
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

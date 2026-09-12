@@ -340,6 +340,35 @@ G("Doc model — quote indent nests, does not toggle off");
         "a trailing blank line is not wrapped into the quote", JSON.stringify(g.blocks));
 }
 
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 3);
+    Doc.indentQuote();
+    const g = Doc.get();
+    const last = g.blocks[g.blocks.length - 1];
+    ok(last && last.type === "p", "after a quote there is a paragraph to land the caret in", JSON.stringify(g.blocks.map(b => b.type)));
+    ok(/^>\s*abc\s*$/.test(Doc.toMarkdown()), "the landing paragraph is not written into the markdown", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("# Hello");
+    const g = Doc.get();
+    ok(g.blocks[0].type === "h1" && g.blocks[g.blocks.length - 1].type === "p",
+        "after a heading there is a paragraph to land the caret in");
+    ok(/^#\s*Hello\s*$/.test(Doc.toMarkdown()), "that landing paragraph is not in the markdown", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 3);
+    Doc.indentQuote();
+    Doc.indentQuote();
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.outdentQuote();
+    ok((Doc.html().match(/<blockquote>/g) || []).length === 1,
+        ">- still unwraps one level when the landing paragraph is in the selection", Doc.html());
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
