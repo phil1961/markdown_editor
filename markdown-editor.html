@@ -3,82 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Markdown Editor v1.0.40</title>
-    <!--
-    ╔══════════════════════════════════════════════════════════════════════════════╗
-    ║                         MARKDOWN EDITOR v1.0.40                              ║
-    ╠══════════════════════════════════════════════════════════════════════════════╣
-    ║  Author:      Phil                                                           ║
-    ║  Created:     November 2024                                                  ║
-    ║  Version:     v1.0.40                                                        ║
-    ║  Description: Professional dual-pane markdown editor with live preview       ║
-    ║                                                                              ║
-    ║  Features:                                                                   ║
-    ║  - Dual-pane editing (editor + live preview)                                 ║
-    ║  - Synchronized scrolling with Track toggle                                  ║
-    ║  - Multi-level quote support (Quote+/Quote-)                                 ║
-    ║  - Comprehensive formatting toolbar                                          ║
-    ║  - Icon highlighting for active formats                                      ║
-    ║  - Edit dialogs with pre-populated values                                    ║
-    ║  - History/undo support                                                      ║
-    ║  - Comprehensive logging system                                              ║
-    ║  - Drag and drop file support                                                ║
-    ║  - File menu with export options                                             ║
-    ║  - View mode toggles (Editor/Preview/Both)                                   ║
-    ║  - Table insertion                                                           ║
-    ║                                                                              ║
-    ║  v1.0.40 Changes:                                                            ║
-    ║  - Fixed header highlighting overlap (H1-H6 buttons)                         ║
-    ║  - Removed no-op pipe replacement in markdown parser                         ║
-    ║  - Wired up undo/redo history recording (was dead code)                      ║
-    ║  - Debounced preview updates for better typing performance                   ║
-    ║  - Fixed block format error on unwrapped preview text nodes                  ║
-    ║                                                                              ║
-    ║  v1.0.39 Changes:                                                            ║
-    ║  - URL hash launch support: open any .md file via bat/context menu           ║
-    ║  - Detects #b64:<content>|filename:<name> on startup                         ║
-    ║  - Decodes base64 content and populates editor automatically                 ║
-    ║  - Displays loaded filename in title bar and file name display               ║
-    ║                                                                              ║
-    ║  v1.0.38 Changes:                                                            ║
-    ║  - Fixed duplicate scrollbar on editor pane                                  ║
-    ║  - Fixed scroll sync to properly track between panes                         ║
-    ║  - Scroll listeners now attached to correct elements                         ║
-    ║                                                                              ║
-    ║  v1.0.37 Changes:                                                            ║
-    ║  - Added view mode toggle (Editor only, Preview only, Both)                  ║
-    ║  - Added table insertion with configurable rows/columns                      ║
-    ║  - Table markdown parsing and rendering in preview                           ║
-    ║                                                                              ║
-    ║  v1.0.36 Changes:                                                            ║
-    ║  - Added drag and drop file loading (.md, .txt, .html)                       ║
-    ║  - Added File menu with dropdown                                             ║
-    ║  - Added Export As options (Markdown, HTML, Plain Text)                      ║
-    ║  - Visual drag overlay feedback                                              ║
-    ║                                                                              ║
-    ║  v1.0.35 Changes:                                                            ║
-    ║  - Fixed Quote+List order bug in preview pane                                ║
-    ║  - Quotes now always appear before bullets/numbers                           ║
-    ║  - Proper HTML structure for blockquote + list combinations                  ║
-    ║                                                                              ║
-    ║  v1.0.34 Changes:                                                            ║
-    ║  - Replaced single Quote button with Quote+/Quote- buttons                   ║
-    ║  - Multi-level nested quotes support (>, >>, >>>, etc.)                      ║
-    ║  - Validation: quotes only at left edge                                      ║
-    ║                                                                              ║
-    ║  v1.0.32-33 Changes:                                                         ║
-    ║  - Synchronized scrolling between editor and preview panes                   ║
-    ║  - Track toggle button for scroll sync                                       ║
-    ║  - Multi-line quote fix for preview pane                                     ║
-    ╚══════════════════════════════════════════════════════════════════════════════╝
-    -->
+    <title>Markdown Editor</title>
+    <!-- GENERATED by build.js from src/. Do not edit this file. -->
     <style>
-        /**
-         * Markdown Editor v1.0.36 - Stylesheet
-         * Professional styling with responsive design
-         */
-        
-        /* Reset and Base */
+/* Reset and Base */
         *, *::before, *::after {
             box-sizing: border-box;
         }
@@ -825,14 +753,15 @@
         .table-preview td {
             color: #9ca3af;
         }
+    
     </style>
 </head>
 <body>
-    <!-- Header -->
+<!-- Header -->
     <header class="header">
         <div class="header-left">
             <div class="header-title">
-                📝 Markdown Editor <span class="text-sm">v1.0.40</span>
+                📝 Markdown Editor <span class="text-sm"></span>
                 <span id="unsavedIndicator" class="unsaved-indicator" style="display: none;"></span>
             </div>
             
@@ -873,7 +802,7 @@
                             <polyline points="17 21 17 13 7 13 7 21"/>
                             <polyline points="7 3 7 8 15 8"/>
                         </svg>
-                        Save
+                        Download
                         <span class="shortcut">Ctrl+S</span>
                     </button>
                     <div class="file-menu-submenu">
@@ -1081,7 +1010,7 @@
         <div class="pane">
             <div class="pane-header">Preview (Rendered)</div>
             <div class="pane-content" id="previewContainer">
-                <div id="preview" contenteditable="true"></div>
+                <div id="preview"></div>
             </div>
         </div>
     </div>
@@ -1169,2270 +1098,2258 @@
             <div class="drag-overlay-subtext">Supports .md, .txt, and .html files</div>
         </div>
     </div>
-    
+
     <script>
-        /**
-         * Markdown Editor v1.0.40 - Main Application Script
-         * Professional markdown editor with dual-pane editing and live preview
-         */
+"use strict";
+
+/* =========================================================================
+   BUILD — the one place a version is recorded.
+   Header, document.title and logs read BUILD.version.
+   ========================================================================= */
+const BUILD = {
+  version:  "1.1.0",
+  released: "11 September 2026",
+  /* Stamped by build.js at compile time as a military DTG (DDHHMMZ MON YY,
+     Zulu). The source carries a placeholder; the assembler substitutes the
+     moment of the build and restamps only when the rest of the file actually
+     changed, so rebuilding an unchanged tree does not churn it, and
+     `build.js --check` ignores this one line when it diffs. */
+  compiled: "120356Z SEP 26",
+  corrections: [
+    ["Fenced code and nested quotes were rewritten by later regexes",
+     "Fences are extracted before inlines run; all leading &gt; markers are restored so >> nests; href/src quotes are escaped and javascript:/data: URLs are dropped."],
+    ["Quote+ inserted a space the parser treated as depth 1",
+     "A second press produced '> > foo'. Quote+ now prepends '>' onto an existing quote prefix."],
+    ["Save did not write the opened file",
+     "File → Download and Ctrl+S download a copy. file:// cannot overwrite the path Explorer opened."],
+    ["Custom undo history was recorded and never consumed",
+     "Dead AppState.history is gone. Format helpers use setRangeText so native textarea undo survives Bold."],
+    ["Preview was a second editor that destroyed tables",
+     "The preview pane is read-only. Toolbar formats apply to the markdown textarea."]
+  ]
+};
+
+// ============================================================================
+// LOGGING SYSTEM
+// ============================================================================
+const Logger = {
+    enabled: true,
+    showInConsole: true,
+    
+    _format(level, module, message) {
+        const time = new Date().toLocaleTimeString('en-US', { hour12: false }) + '.' + 
+                    String(new Date().getMilliseconds()).padStart(3, '0');
+        return `[${time}] [${module}] ${message}`;
+    },
+    
+    _addToPanel(level, message) {
+        const panel = document.getElementById('consolePanel');
+        if (panel) {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${level}`;
+            entry.textContent = message;
+            panel.appendChild(entry);
+            panel.scrollTop = panel.scrollHeight;
+        }
+    },
+    
+    info(module, message) {
+        if (!this.enabled) return;
+        const formatted = this._format('INFO', module, message);
+        if (this.showInConsole) console.log(formatted);
+        this._addToPanel('info', formatted);
+    },
+    
+    warn(module, message) {
+        if (!this.enabled) return;
+        const formatted = this._format('WARN', module, message);
+        if (this.showInConsole) console.warn(formatted);
+        this._addToPanel('warn', formatted);
+    },
+    
+    error(module, message) {
+        if (!this.enabled) return;
+        const formatted = this._format('ERROR', module, message);
+        if (this.showInConsole) console.error(formatted);
+        this._addToPanel('error', formatted);
+    },
+    
+    success(module, message) {
+        if (!this.enabled) return;
+        const formatted = this._format('OK', module, message);
+        if (this.showInConsole) console.log(formatted);
+        this._addToPanel('success', formatted);
+    }
+};
+
+// ============================================================================
+// MARKDOWN PARSER
+// ============================================================================
+const MarkdownParser = {
+    escapeText(s) {
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    },
+    escapeAttr(s) {
+        return this.escapeText(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    },
+    safeUrl(url) {
+        const u = String(url).trim();
+        if (/^(javascript|data|vbscript):/i.test(u)) return '#';
+        return this.escapeAttr(u);
+    },
+
+    parse(markdown) {
+        if (!markdown) return '';
+
+        /* Pull fenced blocks out so later regexes cannot rewrite their contents. */
+        const fences = [];
+        let html = markdown.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+            const i = fences.length;
+            const safeLang = String(lang).replace(/[^a-zA-Z0-9_-]/g, '');
+            fences.push('<pre><code class="language-' + safeLang + '">' + this.escapeText(code.trim()) + '</code></pre>');
+            return '\n\x00FENCE' + i + '\x00\n';
+        });
+
+        html = this.escapeText(html);
+        html = html.replace(/^((?:&gt;)+)/gm, m => m.replace(/&gt;/g, '>'));
+
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
         
-        // ============================================================================
-        // LOGGING SYSTEM
-        // ============================================================================
-        const Logger = {
-            enabled: true,
-            showInConsole: true,
-            
-            _format(level, module, message) {
-                const time = new Date().toLocaleTimeString('en-US', { hour12: false }) + '.' + 
-                            String(new Date().getMilliseconds()).padStart(3, '0');
-                return `[${time}] [${module}] ${message}`;
-            },
-            
-            _addToPanel(level, message) {
-                const panel = document.getElementById('consolePanel');
-                if (panel) {
-                    const entry = document.createElement('div');
-                    entry.className = `log-entry ${level}`;
-                    entry.textContent = message;
-                    panel.appendChild(entry);
-                    panel.scrollTop = panel.scrollHeight;
-                }
-            },
-            
-            info(module, message) {
-                if (!this.enabled) return;
-                const formatted = this._format('INFO', module, message);
-                if (this.showInConsole) console.log(formatted);
-                this._addToPanel('info', formatted);
-            },
-            
-            warn(module, message) {
-                if (!this.enabled) return;
-                const formatted = this._format('WARN', module, message);
-                if (this.showInConsole) console.warn(formatted);
-                this._addToPanel('warn', formatted);
-            },
-            
-            error(module, message) {
-                if (!this.enabled) return;
-                const formatted = this._format('ERROR', module, message);
-                if (this.showInConsole) console.error(formatted);
-                this._addToPanel('error', formatted);
-            },
-            
-            success(module, message) {
-                if (!this.enabled) return;
-                const formatted = this._format('OK', module, message);
-                if (this.showInConsole) console.log(formatted);
-                this._addToPanel('success', formatted);
-            }
-        };
+        // Tables (must be before headers to avoid conflicts)
+        html = this.parseTables(html);
         
-        // ============================================================================
-        // SCROLL SYNC MANAGER
-        // ============================================================================
-        const ScrollSyncManager = {
-            enabled: true,
-            isSyncing: false,
-            syncTimeout: null,
-            lastSyncSource: null,
-            
-            init(editor, previewContainer, trackBtn) {
-                // editor = the textarea element (scrolls itself)
-                // previewContainer = the container div (scrolls the preview content)
-                this.editorEl = editor;
-                this.previewEl = previewContainer;
-                this.trackBtn = trackBtn;
-                
-                // Set up scroll listeners on the actual scrolling elements
-                this.editorEl.addEventListener('scroll', () => this.handleScroll('editor'));
-                this.previewEl.addEventListener('scroll', () => this.handleScroll('preview'));
-                
-                // Set up click listeners for alignment
-                this.editorEl.addEventListener('click', () => this.handleClick('editor'));
-                this.previewEl.addEventListener('click', () => this.handleClick('preview'));
-                
-                // Track button toggle
-                this.trackBtn.addEventListener('click', () => this.toggle());
-                
-                Logger.info('ScrollSync', 'Initialized scroll synchronization');
-            },
-            
-            toggle() {
-                this.enabled = !this.enabled;
-                this.trackBtn.classList.toggle('active', this.enabled);
-                Logger.info('ScrollSync', `Scroll sync ${this.enabled ? 'enabled' : 'disabled'}`);
-            },
-            
-            handleScroll(source) {
-                if (!this.enabled || this.isSyncing) return;
-                if (this.lastSyncSource && this.lastSyncSource !== source) return;
-                
-                this.lastSyncSource = source;
-                
-                // Debounce
-                if (this.syncTimeout) clearTimeout(this.syncTimeout);
-                
-                this.syncTimeout = setTimeout(() => {
-                    this.syncScroll(source);
-                    this.lastSyncSource = null;
-                }, 10);
-            },
-            
-            syncScroll(source) {
-                this.isSyncing = true;
-                
-                const sourceEl = source === 'editor' ? this.editorEl : this.previewEl;
-                const targetEl = source === 'editor' ? this.previewEl : this.editorEl;
-                
-                // Calculate scroll percentage
-                const maxScroll = sourceEl.scrollHeight - sourceEl.clientHeight;
-                if (maxScroll <= 0) {
-                    this.isSyncing = false;
-                    return;
-                }
-                
-                const scrollPercent = sourceEl.scrollTop / maxScroll;
-                
-                // Apply to target
-                const targetMaxScroll = targetEl.scrollHeight - targetEl.clientHeight;
-                const targetScrollTop = scrollPercent * targetMaxScroll;
-                targetEl.scrollTop = targetScrollTop;
-                
-                // Release sync lock after a short delay
-                setTimeout(() => {
-                    this.isSyncing = false;
-                }, 50);
-            },
-            
-            handleClick(source) {
-                if (!this.enabled) return;
-                
-                // Sync scroll position on click
-                this.syncScroll(source);
-            }
-        };
+        // Headers
+        html = html.replace(/^###### (.+)$/gm, '<h6>$1</h6>');
+        html = html.replace(/^##### (.+)$/gm, '<h5>$1</h5>');
+        html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
+        html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
         
-        // ============================================================================
-        // MARKDOWN PARSER
-        // ============================================================================
-        const MarkdownParser = {
-            parse(markdown) {
-                if (!markdown) return '';
-                
-                let html = markdown;
-                
-                // Escape HTML (but preserve our markdown)
-                html = html.replace(/&/g, '&amp;')
-                          .replace(/</g, '&lt;')
-                          .replace(/>/g, '&gt;');
-                
-                // Restore > for blockquotes at start of line
-                html = html.replace(/^&gt;/gm, '>');
-                
-                // Code blocks (must be before other processing)
-                html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
-                    return `<pre><code class="language-${lang}">${code.trim()}</code></pre>`;
-                });
-                
-                // Inline code
-                html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-                
-                // Tables (must be before headers to avoid conflicts)
-                html = this.parseTables(html);
-                
-                // Headers
-                html = html.replace(/^###### (.+)$/gm, '<h6>$1</h6>');
-                html = html.replace(/^##### (.+)$/gm, '<h5>$1</h5>');
-                html = html.replace(/^#### (.+)$/gm, '<h4>$1</h4>');
-                html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-                html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-                html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-                
-                // Bold and Italic
-                html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-                html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-                html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-                html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
-                html = html.replace(/_(.+?)_/g, '<em>$1</em>');
-                
-                // Underline (non-standard but useful)
-                html = html.replace(/\+\+(.+?)\+\+/g, '<u>$1</u>');
-                
-                // Strikethrough
-                html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
-                
-                // Horizontal rule
-                html = html.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '<hr>');
-                
-                // Images
-                html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1">');
-                
-                // Links
-                html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
-                
-                // Blockquotes (handle nested)
-                html = this.parseBlockquotes(html);
-                
-                // Lists
-                html = this.parseLists(html);
-                
-                // Paragraphs
-                html = this.parseParagraphs(html);
-                
-                return html;
-            },
+        // Bold and Italic
+        html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+        html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+        html = html.replace(/(^|[^A-Za-z0-9_])_(?!_)([^_]+)_(?![A-Za-z0-9_])/g, '$1<em>$2</em>');
+        
+        // Underline (non-standard but useful)
+        html = html.replace(/\+\+(.+?)\+\+/g, '<u>$1</u>');
+        
+        // Strikethrough
+        html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+        
+        // Horizontal rule
+        html = html.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '<hr>');
+        
+        html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, url) =>
+            '<img src="' + this.safeUrl(url) + '" alt="' + this.escapeAttr(alt) + '">');
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) =>
+            '<a href="' + this.safeUrl(url) + '">' + text + '</a>');
+        
+        // Blockquotes (handle nested)
+        html = this.parseBlockquotes(html);
+        
+        // Lists
+        html = this.parseLists(html);
+        html = html.replace(/\x00FENCE(\d+)\x00/g, (_, n) => fences[Number(n)]);
+        html = this.parseParagraphs(html);
+        return html;
+    },
+    
+    parseTables(html) {
+        const lines = html.split('\n');
+        const result = [];
+        let tableLines = [];
+        let inTable = false;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim();
             
-            parseTables(html) {
-                const lines = html.split('\n');
-                const result = [];
-                let tableLines = [];
-                let inTable = false;
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    
-                    // Check if this looks like a table row
-                    if (line.startsWith('|') && line.endsWith('|')) {
-                        tableLines.push(line);
-                        inTable = true;
-                    } else if (inTable) {
-                        // End of table, process it
-                        if (tableLines.length >= 2) {
-                            result.push(this.buildTable(tableLines));
-                        } else {
-                            result.push(...tableLines);
-                        }
-                        tableLines = [];
-                        inTable = false;
-                        result.push(line);
-                    } else {
-                        result.push(line);
-                    }
-                }
-                
-                // Handle table at end of document
+            // Check if this looks like a table row
+            if (line.startsWith('|') && line.endsWith('|')) {
+                tableLines.push(line);
+                inTable = true;
+            } else if (inTable) {
+                // End of table, process it
                 if (tableLines.length >= 2) {
                     result.push(this.buildTable(tableLines));
-                } else if (tableLines.length > 0) {
+                } else {
                     result.push(...tableLines);
                 }
-                
-                return result.join('\n');
-            },
-            
-            buildTable(lines) {
-                if (lines.length < 2) return lines.join('\n');
-                
-                // Parse cells from each line
-                const parseRow = (line) => {
-                    return line.split('|')
-                        .slice(1, -1) // Remove empty first and last elements
-                        .map(cell => cell.trim());
-                };
-                
-                const headerCells = parseRow(lines[0]);
-                
-                // Check if second line is separator
-                const separatorLine = lines[1];
-                const isSeparator = /^\|[\s\-:|]+\|$/.test(separatorLine);
-                
-                if (!isSeparator) return lines.join('\n');
-                
-                let tableHtml = '<table><thead><tr>';
-                headerCells.forEach(cell => {
-                    tableHtml += `<th>${cell}</th>`;
-                });
-                tableHtml += '</tr></thead><tbody>';
-                
-                // Process data rows
-                for (let i = 2; i < lines.length; i++) {
-                    const cells = parseRow(lines[i]);
-                    tableHtml += '<tr>';
-                    cells.forEach(cell => {
-                        tableHtml += `<td>${cell}</td>`;
-                    });
-                    tableHtml += '</tr>';
-                }
-                
-                tableHtml += '</tbody></table>';
-                return tableHtml;
-            },
-            
-            parseBlockquotes(html) {
-                const lines = html.split('\n');
-                const result = [];
-                let currentQuote = [];
-                let quoteDepth = 0;
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    const match = line.match(/^(>+)\s*(.*)/);
-                    
-                    if (match) {
-                        const depth = match[1].length;
-                        const content = match[2];
-                        
-                        if (currentQuote.length === 0 || depth === quoteDepth) {
-                            currentQuote.push(content);
-                            quoteDepth = depth;
-                        } else {
-                            // Depth changed, flush current quote
-                            result.push(this.wrapInBlockquote(currentQuote.join('\n'), quoteDepth));
-                            currentQuote = [content];
-                            quoteDepth = depth;
-                        }
-                    } else {
-                        if (currentQuote.length > 0) {
-                            result.push(this.wrapInBlockquote(currentQuote.join('\n'), quoteDepth));
-                            currentQuote = [];
-                            quoteDepth = 0;
-                        }
-                        result.push(line);
-                    }
-                }
-                
-                // Handle remaining quote
-                if (currentQuote.length > 0) {
-                    result.push(this.wrapInBlockquote(currentQuote.join('\n'), quoteDepth));
-                }
-                
-                return result.join('\n');
-            },
-            
-            wrapInBlockquote(content, depth) {
-                let result = content;
-                for (let i = 0; i < depth; i++) {
-                    result = `<blockquote>${result}</blockquote>`;
-                }
-                return result;
-            },
-            
-            parseLists(html) {
-                const lines = html.split('\n');
-                const result = [];
-                let currentList = [];
-                let listType = null;
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i];
-                    const bulletMatch = line.match(/^(\s*)([-*+])\s+(.+)/);
-                    const numberMatch = line.match(/^(\s*)(\d+)\.\s+(.+)/);
-                    
-                    if (bulletMatch) {
-                        if (listType !== 'ul') {
-                            if (currentList.length > 0) {
-                                result.push(this.wrapList(currentList, listType));
-                                currentList = [];
-                            }
-                            listType = 'ul';
-                        }
-                        currentList.push(bulletMatch[3]);
-                    } else if (numberMatch) {
-                        if (listType !== 'ol') {
-                            if (currentList.length > 0) {
-                                result.push(this.wrapList(currentList, listType));
-                                currentList = [];
-                            }
-                            listType = 'ol';
-                        }
-                        currentList.push(numberMatch[3]);
-                    } else {
-                        if (currentList.length > 0) {
-                            result.push(this.wrapList(currentList, listType));
-                            currentList = [];
-                            listType = null;
-                        }
-                        result.push(line);
-                    }
-                }
-                
-                // Handle remaining list
-                if (currentList.length > 0) {
-                    result.push(this.wrapList(currentList, listType));
-                }
-                
-                return result.join('\n');
-            },
-            
-            wrapList(items, type) {
-                const tag = type || 'ul';
-                return `<${tag}>${items.map(item => `<li>${item}</li>`).join('')}</${tag}>`;
-            },
-            
-            parseParagraphs(html) {
-                // Split by double newlines and wrap non-block elements in paragraphs
-                const blocks = html.split(/\n\n+/);
-                const blockTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'blockquote', 'pre', 'hr', 'table'];
-                
-                return blocks.map(block => {
-                    block = block.trim();
-                    if (!block) return '';
-                    
-                    // Check if this block starts with a block-level element
-                    const startsWithBlock = blockTags.some(tag => 
-                        block.startsWith(`<${tag}`) || block.startsWith(`</${tag}`)
-                    );
-                    
-                    if (startsWithBlock) {
-                        return block;
-                    }
-                    
-                    // Replace single newlines with <br> within paragraphs
-                    block = block.replace(/\n/g, '<br>');
-                    return `<p>${block}</p>`;
-                }).join('\n');
+                tableLines = [];
+                inTable = false;
+                result.push(line);
+            } else {
+                result.push(line);
             }
+        }
+        
+        // Handle table at end of document
+        if (tableLines.length >= 2) {
+            result.push(this.buildTable(tableLines));
+        } else if (tableLines.length > 0) {
+            result.push(...tableLines);
+        }
+        
+        return result.join('\n');
+    },
+    
+    buildTable(lines) {
+        if (lines.length < 2) return lines.join('\n');
+        
+        // Parse cells from each line
+        const parseRow = (line) => {
+            return line.split('|')
+                .slice(1, -1) // Remove empty first and last elements
+                .map(cell => cell.trim());
         };
         
-        // ============================================================================
-        // HTML TO MARKDOWN CONVERTER
-        // ============================================================================
-        const HtmlToMarkdown = {
-            convert(html) {
-                if (!html) return '';
-                
-                // Create a temporary container
-                const temp = document.createElement('div');
-                temp.innerHTML = html;
-                
-                return this.processNode(temp).trim();
-            },
+        const headerCells = parseRow(lines[0]);
+        
+        // Check if second line is separator
+        const separatorLine = lines[1];
+        const isSeparator = /^\|[\s\-:|]+\|$/.test(separatorLine);
+        
+        if (!isSeparator) return lines.join('\n');
+        
+        let tableHtml = '<table><thead><tr>';
+        headerCells.forEach(cell => {
+            tableHtml += `<th>${cell}</th>`;
+        });
+        tableHtml += '</tr></thead><tbody>';
+        
+        // Process data rows
+        for (let i = 2; i < lines.length; i++) {
+            const cells = parseRow(lines[i]);
+            tableHtml += '<tr>';
+            cells.forEach(cell => {
+                tableHtml += `<td>${cell}</td>`;
+            });
+            tableHtml += '</tr>';
+        }
+        
+        tableHtml += '</tbody></table>';
+        return tableHtml;
+    },
+    
+    parseBlockquotes(html) {
+        const lines = html.split('\n');
+        const result = [];
+        let currentQuote = [];
+        let quoteDepth = 0;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const match = line.match(/^(>+)\s*(.*)/);
             
-            processNode(node) {
-                let result = '';
+            if (match) {
+                const depth = match[1].length;
+                const content = match[2];
                 
-                for (const child of node.childNodes) {
-                    if (child.nodeType === Node.TEXT_NODE) {
-                        result += child.textContent;
-                    } else if (child.nodeType === Node.ELEMENT_NODE) {
-                        result += this.convertElement(child);
+                if (currentQuote.length === 0 || depth === quoteDepth) {
+                    currentQuote.push(content);
+                    quoteDepth = depth;
+                } else {
+                    // Depth changed, flush current quote
+                    result.push(this.wrapInBlockquote(currentQuote.join('\n'), quoteDepth));
+                    currentQuote = [content];
+                    quoteDepth = depth;
+                }
+            } else {
+                if (currentQuote.length > 0) {
+                    result.push(this.wrapInBlockquote(currentQuote.join('\n'), quoteDepth));
+                    currentQuote = [];
+                    quoteDepth = 0;
+                }
+                result.push(line);
+            }
+        }
+        
+        // Handle remaining quote
+        if (currentQuote.length > 0) {
+            result.push(this.wrapInBlockquote(currentQuote.join('\n'), quoteDepth));
+        }
+        
+        return result.join('\n');
+    },
+    
+    wrapInBlockquote(content, depth) {
+        let result = content;
+        for (let i = 0; i < depth; i++) {
+            result = `<blockquote>${result}</blockquote>`;
+        }
+        return result;
+    },
+    
+    parseLists(html) {
+        const lines = html.split('\n');
+        const result = [];
+        let currentList = [];
+        let listType = null;
+        
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const bulletMatch = line.match(/^(\s*)([-*+])\s+(.+)/);
+            const numberMatch = line.match(/^(\s*)(\d+)\.\s+(.+)/);
+            
+            if (bulletMatch) {
+                if (listType !== 'ul') {
+                    if (currentList.length > 0) {
+                        result.push(this.wrapList(currentList, listType));
+                        currentList = [];
+                    }
+                    listType = 'ul';
+                }
+                currentList.push(bulletMatch[3]);
+            } else if (numberMatch) {
+                if (listType !== 'ol') {
+                    if (currentList.length > 0) {
+                        result.push(this.wrapList(currentList, listType));
+                        currentList = [];
+                    }
+                    listType = 'ol';
+                }
+                currentList.push(numberMatch[3]);
+            } else {
+                if (currentList.length > 0) {
+                    result.push(this.wrapList(currentList, listType));
+                    currentList = [];
+                    listType = null;
+                }
+                result.push(line);
+            }
+        }
+        
+        // Handle remaining list
+        if (currentList.length > 0) {
+            result.push(this.wrapList(currentList, listType));
+        }
+        
+        return result.join('\n');
+    },
+    
+    wrapList(items, type) {
+        const tag = type || 'ul';
+        return `<${tag}>${items.map(item => `<li>${item}</li>`).join('')}</${tag}>`;
+    },
+    
+    parseParagraphs(html) {
+        // Split by double newlines and wrap non-block elements in paragraphs
+        const blocks = html.split(/\n\n+/);
+        const blockTags = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'blockquote', 'pre', 'hr', 'table'];
+        
+        return blocks.map(block => {
+            block = block.trim();
+            if (!block) return '';
+            
+            // Check if this block starts with a block-level element
+            const startsWithBlock = blockTags.some(tag => 
+                block.startsWith(`<${tag}`) || block.startsWith(`</${tag}`)
+            );
+            
+            if (startsWithBlock) {
+                return block;
+            }
+            
+            // Replace single newlines with <br> within paragraphs
+            block = block.replace(/\n/g, '<br>');
+            return `<p>${block}</p>`;
+        }).join('\n');
+    }
+};
+
+/* @requires-dom — HtmlToMarkdown uses document.createElement. */
+// ============================================================================
+// HTML TO MARKDOWN CONVERTER
+// ============================================================================
+const HtmlToMarkdown = {
+    convert(html) {
+        if (!html) return '';
+        
+        // Create a temporary container
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        
+        return this.processNode(temp).trim();
+    },
+    
+    processNode(node) {
+        let result = '';
+        
+        for (const child of node.childNodes) {
+            if (child.nodeType === Node.TEXT_NODE) {
+                result += child.textContent;
+            } else if (child.nodeType === Node.ELEMENT_NODE) {
+                result += this.convertElement(child);
+            }
+        }
+        
+        return result;
+    },
+    
+    convertElement(el) {
+        const tag = el.tagName.toLowerCase();
+        const content = this.processNode(el);
+        
+        switch (tag) {
+            case 'strong':
+            case 'b':
+                return `**${content}**`;
+            case 'em':
+            case 'i':
+                return `*${content}*`;
+            case 'u':
+                return `++${content}++`;
+            case 'del':
+            case 's':
+                return `~~${content}~~`;
+            case 'h1':
+                return `# ${content}\n\n`;
+            case 'h2':
+                return `## ${content}\n\n`;
+            case 'h3':
+                return `### ${content}\n\n`;
+            case 'h4':
+                return `#### ${content}\n\n`;
+            case 'h5':
+                return `##### ${content}\n\n`;
+            case 'h6':
+                return `###### ${content}\n\n`;
+            case 'p':
+                return `${content}\n\n`;
+            case 'br':
+                return '\n';
+            case 'hr':
+                return '---\n\n';
+            case 'a':
+                return `[${content}](${el.getAttribute('href') || ''})`;
+            case 'img':
+                return `![${el.getAttribute('alt') || ''}](${el.getAttribute('src') || ''})`;
+            case 'code':
+                if (el.parentElement && el.parentElement.tagName.toLowerCase() === 'pre') {
+                    return content;
+                }
+                return `\`${content}\``;
+            case 'pre':
+                const codeEl = el.querySelector('code');
+                const lang = codeEl ? (codeEl.className.replace('language-', '') || '') : '';
+                return `\`\`\`${lang}\n${content}\n\`\`\`\n\n`;
+            case 'blockquote':
+                return this.convertBlockquote(el);
+            case 'ul':
+                return this.convertList(el, 'ul');
+            case 'ol':
+                return this.convertList(el, 'ol');
+            case 'li':
+                return content;
+            default:
+                return content;
+        }
+    },
+    
+    convertBlockquote(el, depth = 1) {
+        const prefix = '>'.repeat(depth) + ' ';
+        let result = '';
+        
+        for (const child of el.childNodes) {
+            if (child.nodeType === Node.TEXT_NODE) {
+                const text = child.textContent.trim();
+                if (text) {
+                    result += text.split('\n').map(line => prefix + line).join('\n') + '\n';
+                }
+            } else if (child.nodeType === Node.ELEMENT_NODE) {
+                const tag = child.tagName.toLowerCase();
+                if (tag === 'blockquote') {
+                    result += this.convertBlockquote(child, depth + 1);
+                } else if (tag === 'ul' || tag === 'ol') {
+                    result += this.convertListInBlockquote(child, tag, depth);
+                } else if (tag === 'p') {
+                    const content = this.processNode(child);
+                    result += content.split('\n').map(line => prefix + line).join('\n') + '\n';
+                } else {
+                    const content = this.convertElement(child);
+                    result += content.split('\n').filter(l => l.trim()).map(line => prefix + line).join('\n') + '\n';
+                }
+            }
+        }
+        
+        return result + '\n';
+    },
+    
+    convertListInBlockquote(el, type, quoteDepth) {
+        const prefix = '>'.repeat(quoteDepth) + ' ';
+        let result = '';
+        let index = 1;
+        
+        for (const li of el.querySelectorAll(':scope > li')) {
+            const content = this.processNode(li);
+            const marker = type === 'ol' ? `${index}. ` : '- ';
+            result += prefix + marker + content + '\n';
+            index++;
+        }
+        
+        return result;
+    },
+    
+    convertList(el, type) {
+        let result = '';
+        let index = 1;
+        
+        for (const li of el.querySelectorAll(':scope > li')) {
+            const content = this.processNode(li);
+            const marker = type === 'ol' ? `${index}. ` : '- ';
+            result += marker + content + '\n';
+            index++;
+        }
+        
+        return result + '\n';
+    }
+};
+
+// ============================================================================
+// APPLICATION STATE
+// ============================================================================
+const AppState = {
+    currentFile: null,
+    isModified: false,
+    activePane: 'editor',
+    viewMode: 'both', // 'editor', 'preview', or 'both'
+
+    setModified(modified) {
+        this.isModified = modified;
+        DOM.unsavedIndicator.style.display = modified ? 'inline-block' : 'none';
+    }
+};
+
+/* @requires-dom */
+// ============================================================================
+// TABLE OPERATIONS
+// ============================================================================
+const TableOps = {
+    openModal() {
+        this.updatePreview();
+        DOM.tableModal.classList.add('active');
+        DOM.tableRows.focus();
+    },
+    
+    closeModal() {
+        DOM.tableModal.classList.remove('active');
+        DOM.tableRows.value = '3';
+        DOM.tableCols.value = '3';
+    },
+    
+    updatePreview() {
+        const rows = parseInt(DOM.tableRows.value) || 3;
+        const cols = parseInt(DOM.tableCols.value) || 3;
+        
+        let html = '<table><thead><tr>';
+        for (let c = 0; c < cols; c++) {
+            html += `<th>Header ${c + 1}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+        
+        for (let r = 0; r < rows - 1; r++) {
+            html += '<tr>';
+            for (let c = 0; c < cols; c++) {
+                html += `<td>Cell ${r + 1}-${c + 1}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        
+        DOM.tablePreview.innerHTML = html;
+    },
+    
+    generateMarkdown(rows, cols) {
+        let md = '';
+        
+        // Header row
+        md += '|';
+        for (let c = 0; c < cols; c++) {
+            md += ` Header ${c + 1} |`;
+        }
+        md += '\n';
+        
+        // Separator row
+        md += '|';
+        for (let c = 0; c < cols; c++) {
+            md += ' --- |';
+        }
+        md += '\n';
+        
+        // Data rows
+        for (let r = 0; r < rows - 1; r++) {
+            md += '|';
+            for (let c = 0; c < cols; c++) {
+                md += ` Cell ${r + 1}-${c + 1} |`;
+            }
+            md += '\n';
+        }
+        
+        return md;
+    },
+    
+    insert() {
+        const rows = parseInt(DOM.tableRows.value) || 3;
+        const cols = parseInt(DOM.tableCols.value) || 3;
+        
+        const tableMd = this.generateMarkdown(rows, cols);
+        
+        const editor = DOM.editor;
+        const start = editor.selectionStart;
+        const content = editor.value;
+        
+        // Add newlines before and after if needed
+        let prefix = '';
+        let suffix = '\n';
+        
+        if (start > 0 && content[start - 1] !== '\n') {
+            prefix = '\n\n';
+        } else if (start > 1 && content[start - 2] !== '\n') {
+            prefix = '\n';
+        }
+        
+        const insertText = prefix + tableMd + suffix;
+        EditorOps.replaceSpan(start, editor.selectionEnd, insertText);
+        
+        EditorOps.updatePreviewNow();
+        AppState.setModified(true);
+        this.closeModal();
+        
+        Logger.info('Table', `Inserted ${rows}x${cols} table`);
+    }
+};
+
+// ============================================================================
+// EDITOR OPERATIONS
+// ============================================================================
+const EditorOps = {
+    lineBounds(text, start, end) {
+        const lineStart = text.lastIndexOf('\n', start - 1) + 1;
+        let lineEnd = text.indexOf('\n', end);
+        if (lineEnd === -1) lineEnd = text.length;
+        return { lineStart, lineEnd };
+    },
+
+    replaceSpan(from, to, insert, selFrom, selTo) {
+        const editor = DOM.editor;
+        editor.setRangeText(insert, from, to, 'end');
+        if (selFrom != null) {
+            editor.selectionStart = selFrom;
+            editor.selectionEnd = selTo;
+        }
+    },
+
+    /**
+     * Apply inline formatting to selected text in editor
+     */
+    applyInlineFormat(format) {
+        const editor = DOM.editor;
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const text = editor.value;
+        const selected = text.substring(start, end);
+        
+        let wrapper;
+        switch (format) {
+            case 'bold': wrapper = '**'; break;
+            case 'italic': wrapper = '*'; break;
+            case 'underline': wrapper = '++'; break;
+            case 'strike': wrapper = '~~'; break;
+            case 'code': wrapper = '`'; break;
+            default: return;
+        }
+        
+        // Check if already formatted
+        const beforeWrapper = text.substring(start - wrapper.length, start);
+        const afterWrapper = text.substring(end, end + wrapper.length);
+        
+        if (beforeWrapper === wrapper && afterWrapper === wrapper) {
+            this.replaceSpan(start - wrapper.length, end + wrapper.length, selected,
+                start - wrapper.length, end - wrapper.length);
+        } else {
+            const newText = wrapper + (selected || 'text') + wrapper;
+            this.replaceSpan(start, end, newText, start + wrapper.length, start + wrapper.length + (selected || 'text').length);
+        }
+        
+        this.updatePreviewNow();
+        AppState.setModified(true);
+        Logger.info('Editor', `Applied ${format} formatting`);
+    },
+    
+    /**
+     * Apply block formatting (headers, lists, quotes)
+     */
+    applyBlockFormat(format) {
+        const editor = DOM.editor;
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+        const text = editor.value;
+        
+        const { lineStart, lineEnd } = this.lineBounds(text, start, end);
+        
+        // Get all lines in selection
+        const selectedLines = text.substring(lineStart, lineEnd).split('\n');
+        
+        let newLines;
+        switch (format) {
+            case 'h1':
+            case 'h2':
+            case 'h3':
+            case 'h4':
+            case 'h5':
+            case 'h6':
+                const level = parseInt(format.substring(1));
+                const prefix = '#'.repeat(level) + ' ';
+                newLines = selectedLines.map(line => {
+                    // Remove existing header
+                    line = line.replace(/^#{1,6}\s*/, '');
+                    return prefix + line;
+                });
+                break;
+                
+            case 'bullet':
+                newLines = selectedLines.map(line => {
+                    // Check if already a bullet list
+                    if (/^[-*+]\s/.test(line)) {
+                        return line.replace(/^[-*+]\s/, '');
+                    }
+                    // Remove number list marker if present
+                    line = line.replace(/^\d+\.\s/, '');
+                    return '- ' + line;
+                });
+                break;
+                
+            case 'number':
+                let num = 1;
+                newLines = selectedLines.map(line => {
+                    // Check if already a numbered list
+                    if (/^\d+\.\s/.test(line)) {
+                        return line.replace(/^\d+\.\s/, '');
+                    }
+                    // Remove bullet marker if present
+                    line = line.replace(/^[-*+]\s/, '');
+                    return `${num++}. ${line}`;
+                });
+                break;
+                
+            case 'quoteIncrease':
+                newLines = selectedLines.map(line => {
+                    if (/^[^>\s].*>/.test(line)) {
+                        alert('Quotes can only appear at the start of lines. Remove the text before ">" first.');
+                        return line;
+                    }
+                    if (/^>+/.test(line)) return '>' + line;
+                    return '> ' + line;
+                });
+                break;
+                
+            case 'quoteDecrease':
+                newLines = selectedLines.map(line => {
+                    if (line.startsWith('> ')) {
+                        return line.substring(2);
+                    } else if (line.startsWith('>')) {
+                        return line.substring(1);
+                    }
+                    return line;
+                });
+                break;
+                
+            case 'codeBlock':
+                const code = selectedLines.join('\n');
+                newLines = ['```', code, '```'];
+                break;
+                
+            case 'hr':
+                newLines = ['---', ...selectedLines];
+                break;
+                
+            default:
+                return;
+        }
+        
+        const newContent = newLines.join('\n');
+        this.replaceSpan(lineStart, lineEnd, newContent, lineStart, lineStart + newContent.length);
+        
+        this.updatePreviewNow();
+        AppState.setModified(true);
+        Logger.info('Editor', `Applied ${format} block formatting`);
+    },
+    
+    /**
+     * Insert link at cursor position
+     */
+    insertLink(text, url) {
+        const editor = DOM.editor;
+        const start = editor.selectionStart;
+        const content = editor.value;
+        
+        const linkMd = `[${text}](${url})`;
+        this.replaceSpan(start, editor.selectionEnd, linkMd);
+        
+        this.updatePreviewNow();
+        AppState.setModified(true);
+        Logger.info('Editor', `Inserted link: ${url}`);
+    },
+    
+    /**
+     * Insert image at cursor position
+     */
+    insertImage(alt, url) {
+        const editor = DOM.editor;
+        const start = editor.selectionStart;
+        const content = editor.value;
+        
+        const imgMd = `![${alt}](${url})`;
+        this.replaceSpan(start, editor.selectionEnd, imgMd);
+        
+        this.updatePreviewNow();
+        AppState.setModified(true);
+        Logger.info('Editor', `Inserted image: ${url}`);
+    },
+    
+    _previewTimer: null,
+
+    /**
+     * Update preview pane from editor content (debounced)
+     */
+    updatePreview() {
+        if (this._previewTimer) clearTimeout(this._previewTimer);
+        this._previewTimer = setTimeout(() => {
+            const markdown = DOM.editor.value;
+            DOM.preview.innerHTML = MarkdownParser.parse(markdown);
+            this.updateStatus();
+        }, 30);
+    },
+
+    /**
+     * Update preview immediately (for programmatic changes)
+     */
+    updatePreviewNow() {
+        if (this._previewTimer) clearTimeout(this._previewTimer);
+        const markdown = DOM.editor.value;
+        DOM.preview.innerHTML = MarkdownParser.parse(markdown);
+        this.updateStatus();
+    },
+    
+    /**
+     * Update status bar
+     */
+    updateStatus() {
+        const text = DOM.editor.value;
+        const lines = text.split('\n').length;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+        const chars = text.length;
+        
+        DOM.statusRight.textContent = `Lines: ${lines} | Words: ${words} | Characters: ${chars}`;
+    }
+};
+
+/* @requires-dom */
+// ============================================================================
+// PREVIEW OPERATIONS
+// ============================================================================
+const PreviewOps = {
+    /**
+     * Apply formatting in preview pane
+     */
+    applyFormat(format) {
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+        
+        const range = selection.getRangeAt(0);
+        
+        // Check if we're in the preview pane
+        if (!DOM.preview.contains(range.commonAncestorContainer)) {
+            return;
+        }
+        
+        // Handle block formats differently
+        const blockFormats = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'bullet', 'number', 'quoteIncrease', 'quoteDecrease', 'codeBlock', 'hr'];
+        if (blockFormats.includes(format)) {
+            this.applyBlockFormat(format, range);
+        } else {
+            this.applyInlineFormat(format, range);
+        }
+    },
+    
+    /**
+     * Apply inline formatting in preview
+     */
+    applyInlineFormat(format, range) {
+        let tagName;
+        switch (format) {
+            case 'bold': tagName = 'strong'; break;
+            case 'italic': tagName = 'em'; break;
+            case 'underline': tagName = 'u'; break;
+            case 'strike': tagName = 'del'; break;
+            case 'code': tagName = 'code'; break;
+            default: return;
+        }
+        
+        // Check if already formatted
+        const parentTag = range.commonAncestorContainer.parentElement;
+        if (parentTag && parentTag.tagName.toLowerCase() === tagName) {
+            // Remove formatting
+            const text = document.createTextNode(parentTag.textContent);
+            parentTag.parentNode.replaceChild(text, parentTag);
+        } else {
+            // Add formatting
+            const wrapper = document.createElement(tagName);
+            wrapper.appendChild(range.extractContents());
+            range.insertNode(wrapper);
+        }
+        
+        this.syncToEditor();
+        Logger.info('Preview', `Applied ${format} formatting`);
+    },
+    
+    /**
+     * Apply block formatting in preview
+     */
+    applyBlockFormat(format, range) {
+        // Find the block element(s) containing the selection
+        let startBlock = this.findBlockElement(range.startContainer);
+        let endBlock = this.findBlockElement(range.endContainer);
+        
+        if (!startBlock) {
+            Logger.warn('Preview', 'Could not find block element for formatting');
+            alert('Could not find block element. Please select some content first.');
+            return;
+        }
+        
+        // Collect all block elements in the selection
+        const selectedBlocks = [];
+        const processedLists = new Set();
+        
+        // Get all elements that intersect with the selection
+        const walker = document.createTreeWalker(
+            DOM.preview,
+            NodeFilter.SHOW_ELEMENT,
+            {
+                acceptNode: (node) => {
+                    if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'UL', 'OL'].includes(node.tagName)) {
+                        return NodeFilter.FILTER_ACCEPT;
+                    }
+                    return NodeFilter.FILTER_SKIP;
+                }
+            }
+        );
+        
+        let node;
+        let foundStart = false;
+        
+        while (node = walker.nextNode()) {
+            if (node === startBlock || node.contains(startBlock) || startBlock.contains(node)) {
+                foundStart = true;
+            }
+            
+            if (foundStart && range.intersectsNode(node)) {
+                // Special handling for LI elements - get the parent list instead
+                if (node.tagName === 'LI') {
+                    const parentList = node.closest('ul, ol');
+                    if (parentList && !processedLists.has(parentList)) {
+                        // Check if all list items are selected
+                        const listItems = Array.from(parentList.querySelectorAll(':scope > li'));
+                        const allSelected = listItems.every(li => range.intersectsNode(li));
+                        if (allSelected && (format === 'quoteIncrease' || format === 'quoteDecrease')) {
+                            selectedBlocks.push(parentList);
+                            processedLists.add(parentList);
+                            continue;
+                        }
                     }
                 }
                 
-                return result;
-            },
+                if (!processedLists.has(node.closest('ul, ol'))) {
+                    selectedBlocks.push(node);
+                }
+            }
             
-            convertElement(el) {
-                const tag = el.tagName.toLowerCase();
-                const content = this.processNode(el);
+            if (node === endBlock || node.contains(endBlock)) {
+                break;
+            }
+        }
+        
+        // If no blocks found, use the start block
+        if (selectedBlocks.length === 0 && startBlock) {
+            selectedBlocks.push(startBlock);
+        }
+        
+        // Apply formatting to each block
+        for (const block of selectedBlocks) {
+            this.formatBlock(block, format);
+        }
+        
+        this.syncToEditor();
+        Logger.info('Preview', `Applied ${format} to ${selectedBlocks.length} block(s)`);
+    },
+    
+    /**
+     * Find the nearest block-level element
+     */
+    findBlockElement(node) {
+        while (node && node !== DOM.preview) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const tag = node.tagName.toLowerCase();
+                if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'ul', 'ol'].includes(tag)) {
+                    return node;
+                }
+            }
+            node = node.parentNode;
+        }
+        // If no block parent found, wrap the text node in a <p>
+        if (node === DOM.preview) {
+            const selection = window.getSelection();
+            if (selection.rangeCount) {
+                const range = selection.getRangeAt(0);
+                const p = document.createElement('p');
+                // Find the top-level nodes in preview that intersect the selection
+                const children = Array.from(DOM.preview.childNodes);
+                let first = null, last = null;
+                for (const child of children) {
+                    if (range.intersectsNode(child)) {
+                        if (!first) first = child;
+                        last = child;
+                    }
+                }
+                if (first) {
+                    DOM.preview.insertBefore(p, first);
+                    let current = p.nextSibling;
+                    while (current) {
+                        const next = current.nextSibling;
+                        p.appendChild(current);
+                        if (current === last) break;
+                        current = next;
+                    }
+                    return p;
+                }
+            }
+        }
+        return null;
+    },
+    
+    /**
+     * Format a single block element
+     */
+    formatBlock(block, format) {
+        const tag = block.tagName.toLowerCase();
+        
+        switch (format) {
+            case 'h1':
+            case 'h2':
+            case 'h3':
+            case 'h4':
+            case 'h5':
+            case 'h6':
+                this.convertToHeader(block, format);
+                break;
+                
+            case 'bullet':
+                this.convertToList(block, 'ul');
+                break;
+                
+            case 'number':
+                this.convertToList(block, 'ol');
+                break;
+                
+            case 'quoteIncrease':
+                this.increaseQuote(block);
+                break;
+                
+            case 'quoteDecrease':
+                this.decreaseQuote(block);
+                break;
+        }
+    },
+    
+    /**
+     * Convert block to header
+     */
+    convertToHeader(block, level) {
+        const newHeader = document.createElement(level);
+        newHeader.innerHTML = block.innerHTML;
+        block.parentNode.replaceChild(newHeader, block);
+    },
+    
+    /**
+     * Convert block to list
+     */
+    convertToList(block, type) {
+        const tag = block.tagName.toLowerCase();
+        
+        if (tag === 'li') {
+            // Toggle list type
+            const parentList = block.parentElement;
+            if (parentList.tagName.toLowerCase() !== type) {
+                const newList = document.createElement(type);
+                while (parentList.firstChild) {
+                    newList.appendChild(parentList.firstChild);
+                }
+                parentList.parentNode.replaceChild(newList, parentList);
+            }
+        } else {
+            // Convert to list
+            const list = document.createElement(type);
+            const li = document.createElement('li');
+            li.innerHTML = block.innerHTML;
+            list.appendChild(li);
+            block.parentNode.replaceChild(list, block);
+        }
+    },
+    
+    /**
+     * Increase quote level
+     */
+    increaseQuote(block) {
+        const blockquote = document.createElement('blockquote');
+        
+        // Handle list elements specially - wrap the entire list
+        if (block.tagName === 'UL' || block.tagName === 'OL') {
+            const clonedList = block.cloneNode(true);
+            blockquote.appendChild(clonedList);
+            block.parentNode.replaceChild(blockquote, block);
+        } else if (block.tagName === 'LI') {
+            // Wrap the parent list
+            const parentList = block.closest('ul, ol');
+            if (parentList) {
+                const clonedList = parentList.cloneNode(true);
+                blockquote.appendChild(clonedList);
+                parentList.parentNode.replaceChild(blockquote, parentList);
+            }
+        } else {
+            // Regular element
+            const cloned = block.cloneNode(true);
+            blockquote.appendChild(cloned);
+            block.parentNode.replaceChild(blockquote, block);
+        }
+    },
+    
+    /**
+     * Decrease quote level
+     */
+    decreaseQuote(block) {
+        // Find the nearest blockquote parent
+        const blockquote = block.closest('blockquote');
+        if (!blockquote) return;
+        
+        // Move contents out of the blockquote
+        const parent = blockquote.parentNode;
+        while (blockquote.firstChild) {
+            parent.insertBefore(blockquote.firstChild, blockquote);
+        }
+        parent.removeChild(blockquote);
+    },
+    
+    /**
+     * Sync preview changes back to editor
+     */
+    syncToEditor() {
+        const markdown = HtmlToMarkdown.convert(DOM.preview.innerHTML);
+        DOM.editor.value = markdown;
+        EditorOps.updateStatus();
+        AppState.setModified(true);
+    }
+};
+
+/* @requires-dom */
+// ============================================================================
+// SCROLL SYNC MANAGER
+// ============================================================================
+const ScrollSyncManager = {
+    enabled: true,
+    isSyncing: false,
+    syncTimeout: null,
+    lastSyncSource: null,
+    
+    init(editor, previewContainer, trackBtn) {
+        // editor = the textarea element (scrolls itself)
+        // previewContainer = the container div (scrolls the preview content)
+        this.editorEl = editor;
+        this.previewEl = previewContainer;
+        this.trackBtn = trackBtn;
+        
+        // Set up scroll listeners on the actual scrolling elements
+        this.editorEl.addEventListener('scroll', () => this.handleScroll('editor'));
+        this.previewEl.addEventListener('scroll', () => this.handleScroll('preview'));
+        
+        // Set up click listeners for alignment
+        this.editorEl.addEventListener('click', () => this.handleClick('editor'));
+        this.previewEl.addEventListener('click', () => this.handleClick('preview'));
+        
+        // Track button toggle
+        this.trackBtn.addEventListener('click', () => this.toggle());
+        
+        Logger.info('ScrollSync', 'Initialized scroll synchronization');
+    },
+    
+    toggle() {
+        this.enabled = !this.enabled;
+        this.trackBtn.classList.toggle('active', this.enabled);
+        Logger.info('ScrollSync', `Scroll sync ${this.enabled ? 'enabled' : 'disabled'}`);
+    },
+    
+    handleScroll(source) {
+        if (!this.enabled || this.isSyncing) return;
+        if (this.lastSyncSource && this.lastSyncSource !== source) return;
+        
+        this.lastSyncSource = source;
+        
+        // Debounce
+        if (this.syncTimeout) clearTimeout(this.syncTimeout);
+        
+        this.syncTimeout = setTimeout(() => {
+            this.syncScroll(source);
+            this.lastSyncSource = null;
+        }, 10);
+    },
+    
+    syncScroll(source) {
+        this.isSyncing = true;
+        
+        const sourceEl = source === 'editor' ? this.editorEl : this.previewEl;
+        const targetEl = source === 'editor' ? this.previewEl : this.editorEl;
+        
+        // Calculate scroll percentage
+        const maxScroll = sourceEl.scrollHeight - sourceEl.clientHeight;
+        if (maxScroll <= 0) {
+            this.isSyncing = false;
+            return;
+        }
+        
+        const scrollPercent = sourceEl.scrollTop / maxScroll;
+        
+        // Apply to target
+        const targetMaxScroll = targetEl.scrollHeight - targetEl.clientHeight;
+        const targetScrollTop = scrollPercent * targetMaxScroll;
+        targetEl.scrollTop = targetScrollTop;
+        
+        // Release sync lock after a short delay
+        setTimeout(() => {
+            this.isSyncing = false;
+        }, 50);
+    },
+    
+    handleClick(source) {
+        if (!this.enabled) return;
+        
+        // Sync scroll position on click
+        this.syncScroll(source);
+    }
+};
+
+// ============================================================================
+// VIEW MODE MANAGER
+// ============================================================================
+const ViewModeManager = {
+    setMode(mode) {
+        AppState.viewMode = mode;
+        
+        // Remove all view mode classes
+        DOM.mainContainer.classList.remove('editor-only', 'preview-only');
+        
+        // Apply the new mode
+        if (mode === 'editor') {
+            DOM.mainContainer.classList.add('editor-only');
+        } else if (mode === 'preview') {
+            DOM.mainContainer.classList.add('preview-only');
+        }
+        
+        // Update button states
+        DOM.viewEditorBtn.classList.toggle('active', mode === 'editor');
+        DOM.viewBothBtn.classList.toggle('active', mode === 'both');
+        DOM.viewPreviewBtn.classList.toggle('active', mode === 'preview');
+        
+        // Focus the appropriate pane
+        if (mode === 'editor') {
+            DOM.editor.focus();
+            AppState.activePane = 'editor';
+        } else if (mode === 'preview') {
+            DOM.preview.focus();
+            AppState.activePane = 'preview';
+        }
+        
+        Logger.info('ViewMode', `Switched to ${mode} view`);
+    }
+};
+
+// ============================================================================
+// ICON HIGHLIGHTING
+// ============================================================================
+const IconHighlighter = {
+    /**
+     * Check format at cursor position in editor
+     */
+    checkEditorFormats() {
+        const editor = DOM.editor;
+        const pos = editor.selectionStart;
+        const text = editor.value;
+        
+        const { lineStart, lineEnd } = EditorOps.lineBounds(text, pos, pos);
+        const line = text.substring(lineStart, lineEnd);
+        
+        // Get text around cursor for inline formats
+        const before = text.substring(0, pos);
+        const after = text.substring(pos);
+        
+        // Reset all buttons
+        this.resetButtons();
+        
+        // Check inline formats
+        if (this.isWrappedBy(before, after, '**') || this.isWrappedBy(before, after, '__')) {
+            DOM.boldBtn.classList.add('active');
+        }
+        if (this.isWrappedBy(before, after, '*') || this.isWrappedBy(before, after, '_')) {
+            if (!this.isWrappedBy(before, after, '**')) {
+                DOM.italicBtn.classList.add('active');
+            }
+        }
+        if (this.isWrappedBy(before, after, '++')) {
+            DOM.underlineBtn.classList.add('active');
+        }
+        if (this.isWrappedBy(before, after, '~~')) {
+            DOM.strikeBtn.classList.add('active');
+        }
+        if (this.isWrappedBy(before, after, '`')) {
+            DOM.codeBtn.classList.add('active');
+        }
+        
+        // Check block formats (most specific first to avoid overlap)
+        if (/^###### /.test(line)) DOM.h6Btn.classList.add('active');
+        else if (/^##### /.test(line)) DOM.h5Btn.classList.add('active');
+        else if (/^#### /.test(line)) DOM.h4Btn.classList.add('active');
+        else if (/^### /.test(line)) DOM.h3Btn.classList.add('active');
+        else if (/^## /.test(line)) DOM.h2Btn.classList.add('active');
+        else if (/^# /.test(line)) DOM.h1Btn.classList.add('active');
+        if (/^[-*+] /.test(line)) DOM.bulletBtn.classList.add('active');
+        if (/^\d+\. /.test(line)) DOM.numberBtn.classList.add('active');
+        if (/^>/.test(line)) DOM.quoteIncreaseBtn.classList.add('active');
+        
+        // Check for links and images
+        if (/\[([^\]]+)\]\(([^)]+)\)/.test(line)) {
+            // Check if cursor is within a link
+            const linkMatch = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
+            if (linkMatch) {
+                const linkStart = lineStart + line.indexOf(linkMatch[0]);
+                const linkEnd = linkStart + linkMatch[0].length;
+                if (pos >= linkStart && pos <= linkEnd) {
+                    DOM.linkBtn.classList.add('active');
+                }
+            }
+        }
+        if (/!\[([^\]]*)\]\(([^)]+)\)/.test(line)) {
+            const imgMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
+            if (imgMatch) {
+                const imgStart = lineStart + line.indexOf(imgMatch[0]);
+                const imgEnd = imgStart + imgMatch[0].length;
+                if (pos >= imgStart && pos <= imgEnd) {
+                    DOM.imageBtn.classList.add('active');
+                }
+            }
+        }
+    },
+    
+    /**
+     * Check format at cursor position in preview
+     */
+    checkPreviewFormats() {
+        const selection = window.getSelection();
+        if (!selection.rangeCount) return;
+        
+        let node = selection.anchorNode;
+        if (!node || !DOM.preview.contains(node)) return;
+        
+        // Reset all buttons
+        this.resetButtons();
+        
+        // Walk up the tree and check for formatting elements
+        while (node && node !== DOM.preview) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const tag = node.tagName.toLowerCase();
                 
                 switch (tag) {
                     case 'strong':
                     case 'b':
-                        return `**${content}**`;
+                        DOM.boldBtn.classList.add('active');
+                        break;
                     case 'em':
                     case 'i':
-                        return `*${content}*`;
+                        DOM.italicBtn.classList.add('active');
+                        break;
                     case 'u':
-                        return `++${content}++`;
+                        DOM.underlineBtn.classList.add('active');
+                        break;
                     case 'del':
                     case 's':
-                        return `~~${content}~~`;
-                    case 'h1':
-                        return `# ${content}\n\n`;
-                    case 'h2':
-                        return `## ${content}\n\n`;
-                    case 'h3':
-                        return `### ${content}\n\n`;
-                    case 'h4':
-                        return `#### ${content}\n\n`;
-                    case 'h5':
-                        return `##### ${content}\n\n`;
-                    case 'h6':
-                        return `###### ${content}\n\n`;
-                    case 'p':
-                        return `${content}\n\n`;
-                    case 'br':
-                        return '\n';
-                    case 'hr':
-                        return '---\n\n';
-                    case 'a':
-                        return `[${content}](${el.getAttribute('href') || ''})`;
-                    case 'img':
-                        return `![${el.getAttribute('alt') || ''}](${el.getAttribute('src') || ''})`;
+                        DOM.strikeBtn.classList.add('active');
+                        break;
                     case 'code':
-                        if (el.parentElement && el.parentElement.tagName.toLowerCase() === 'pre') {
-                            return content;
-                        }
-                        return `\`${content}\``;
-                    case 'pre':
-                        const codeEl = el.querySelector('code');
-                        const lang = codeEl ? (codeEl.className.replace('language-', '') || '') : '';
-                        return `\`\`\`${lang}\n${content}\n\`\`\`\n\n`;
-                    case 'blockquote':
-                        return this.convertBlockquote(el);
-                    case 'ul':
-                        return this.convertList(el, 'ul');
-                    case 'ol':
-                        return this.convertList(el, 'ol');
+                        DOM.codeBtn.classList.add('active');
+                        break;
+                    case 'h1':
+                        DOM.h1Btn.classList.add('active');
+                        break;
+                    case 'h2':
+                        DOM.h2Btn.classList.add('active');
+                        break;
+                    case 'h3':
+                        DOM.h3Btn.classList.add('active');
+                        break;
+                    case 'h4':
+                        DOM.h4Btn.classList.add('active');
+                        break;
+                    case 'h5':
+                        DOM.h5Btn.classList.add('active');
+                        break;
+                    case 'h6':
+                        DOM.h6Btn.classList.add('active');
+                        break;
                     case 'li':
-                        return content;
-                    default:
-                        return content;
+                        const parent = node.parentElement;
+                        if (parent.tagName === 'UL') DOM.bulletBtn.classList.add('active');
+                        if (parent.tagName === 'OL') DOM.numberBtn.classList.add('active');
+                        break;
+                    case 'blockquote':
+                        DOM.quoteIncreaseBtn.classList.add('active');
+                        break;
+                    case 'a':
+                        DOM.linkBtn.classList.add('active');
+                        break;
+                    case 'img':
+                        DOM.imageBtn.classList.add('active');
+                        break;
                 }
-            },
-            
-            convertBlockquote(el, depth = 1) {
-                const prefix = '>'.repeat(depth) + ' ';
-                let result = '';
-                
-                for (const child of el.childNodes) {
-                    if (child.nodeType === Node.TEXT_NODE) {
-                        const text = child.textContent.trim();
-                        if (text) {
-                            result += text.split('\n').map(line => prefix + line).join('\n') + '\n';
-                        }
-                    } else if (child.nodeType === Node.ELEMENT_NODE) {
-                        const tag = child.tagName.toLowerCase();
-                        if (tag === 'blockquote') {
-                            result += this.convertBlockquote(child, depth + 1);
-                        } else if (tag === 'ul' || tag === 'ol') {
-                            result += this.convertListInBlockquote(child, tag, depth);
-                        } else if (tag === 'p') {
-                            const content = this.processNode(child);
-                            result += content.split('\n').map(line => prefix + line).join('\n') + '\n';
-                        } else {
-                            const content = this.convertElement(child);
-                            result += content.split('\n').filter(l => l.trim()).map(line => prefix + line).join('\n') + '\n';
-                        }
-                    }
-                }
-                
-                return result + '\n';
-            },
-            
-            convertListInBlockquote(el, type, quoteDepth) {
-                const prefix = '>'.repeat(quoteDepth) + ' ';
-                let result = '';
-                let index = 1;
-                
-                for (const li of el.querySelectorAll(':scope > li')) {
-                    const content = this.processNode(li);
-                    const marker = type === 'ol' ? `${index}. ` : '- ';
-                    result += prefix + marker + content + '\n';
-                    index++;
-                }
-                
-                return result;
-            },
-            
-            convertList(el, type) {
-                let result = '';
-                let index = 1;
-                
-                for (const li of el.querySelectorAll(':scope > li')) {
-                    const content = this.processNode(li);
-                    const marker = type === 'ol' ? `${index}. ` : '- ';
-                    result += marker + content + '\n';
-                    index++;
-                }
-                
-                return result + '\n';
             }
-        };
+            node = node.parentNode;
+        }
+    },
+    
+    /**
+     * Check if text is wrapped by a marker
+     */
+    isWrappedBy(before, after, marker) {
+        const len = marker.length;
+        // Check if marker appears before cursor and after cursor
+        const beforeHas = before.lastIndexOf(marker) > before.lastIndexOf('\n');
+        const afterHas = after.indexOf(marker) !== -1 && after.indexOf(marker) < after.indexOf('\n');
+        return beforeHas && afterHas;
+    },
+    
+    /**
+     * Reset all button states
+     */
+    resetButtons() {
+        const buttons = [
+            DOM.boldBtn, DOM.italicBtn, DOM.underlineBtn, DOM.strikeBtn,
+            DOM.h1Btn, DOM.h2Btn, DOM.h3Btn, DOM.h4Btn, DOM.h5Btn, DOM.h6Btn,
+            DOM.bulletBtn, DOM.numberBtn, DOM.quoteIncreaseBtn,
+            DOM.linkBtn, DOM.imageBtn, DOM.codeBtn
+        ];
         
-        // ============================================================================
-        // DOM REFERENCES
-        // ============================================================================
-        const DOM = {
-            editor: document.getElementById('editor'),
-            preview: document.getElementById('preview'),
-            editorContainer: document.getElementById('editorContainer'),
-            previewContainer: document.getElementById('previewContainer'),
-            mainContainer: document.querySelector('.main-container'),
-            editorPane: document.querySelector('.pane:first-child'),
-            previewPane: document.querySelector('.pane:last-child'),
-            
-            // File Menu
-            fileMenu: document.getElementById('fileMenu'),
-            fileMenuBtn: document.getElementById('fileMenuBtn'),
-            menuNew: document.getElementById('menuNew'),
-            menuOpen: document.getElementById('menuOpen'),
-            menuSave: document.getElementById('menuSave'),
-            exportMd: document.getElementById('exportMd'),
-            exportHtml: document.getElementById('exportHtml'),
-            exportTxt: document.getElementById('exportTxt'),
-            fileNameDisplay: document.getElementById('fileNameDisplay'),
-            
-            // Drag and Drop
-            dragOverlay: document.getElementById('dragOverlay'),
-            
-            // View Mode Buttons
-            viewEditorBtn: document.getElementById('viewEditorBtn'),
-            viewBothBtn: document.getElementById('viewBothBtn'),
-            viewPreviewBtn: document.getElementById('viewPreviewBtn'),
-            
-            // Toolbar Buttons
-            boldBtn: document.getElementById('boldBtn'),
-            italicBtn: document.getElementById('italicBtn'),
-            underlineBtn: document.getElementById('underlineBtn'),
-            strikeBtn: document.getElementById('strikeBtn'),
-            h1Btn: document.getElementById('h1Btn'),
-            h2Btn: document.getElementById('h2Btn'),
-            h3Btn: document.getElementById('h3Btn'),
-            h4Btn: document.getElementById('h4Btn'),
-            h5Btn: document.getElementById('h5Btn'),
-            h6Btn: document.getElementById('h6Btn'),
-            bulletBtn: document.getElementById('bulletBtn'),
-            numberBtn: document.getElementById('numberBtn'),
-            quoteIncreaseBtn: document.getElementById('quoteIncreaseBtn'),
-            quoteDecreaseBtn: document.getElementById('quoteDecreaseBtn'),
-            linkBtn: document.getElementById('linkBtn'),
-            imageBtn: document.getElementById('imageBtn'),
-            tableBtn: document.getElementById('tableBtn'),
-            codeBtn: document.getElementById('codeBtn'),
-            codeBlockBtn: document.getElementById('codeBlockBtn'),
-            hrBtn: document.getElementById('hrBtn'),
-            trackBtn: document.getElementById('trackBtn'),
-            
-            // Modals
-            linkModal: document.getElementById('linkModal'),
-            imageModal: document.getElementById('imageModal'),
-            tableModal: document.getElementById('tableModal'),
-            linkText: document.getElementById('linkText'),
-            linkUrl: document.getElementById('linkUrl'),
-            imageAlt: document.getElementById('imageAlt'),
-            imageUrl: document.getElementById('imageUrl'),
-            linkCancel: document.getElementById('linkCancel'),
-            linkSubmit: document.getElementById('linkSubmit'),
-            imageCancel: document.getElementById('imageCancel'),
-            imageSubmit: document.getElementById('imageSubmit'),
-            tableRows: document.getElementById('tableRows'),
-            tableCols: document.getElementById('tableCols'),
-            tablePreview: document.getElementById('tablePreview'),
-            tableCancel: document.getElementById('tableCancel'),
-            tableSubmit: document.getElementById('tableSubmit'),
-            
-            // Status
-            statusLeft: document.getElementById('statusLeft'),
-            statusRight: document.getElementById('statusRight'),
-            unsavedIndicator: document.getElementById('unsavedIndicator'),
-            fileInput: document.getElementById('fileInput')
-        };
-        
-        // ============================================================================
-        // APPLICATION STATE
-        // ============================================================================
-        const AppState = {
-            currentFile: null,
-            isModified: false,
-            activePane: 'editor',
-            viewMode: 'both', // 'editor', 'preview', or 'both'
-            history: [],
-            historyIndex: -1,
-            maxHistory: 100,
-            
-            setModified(modified) {
-                this.isModified = modified;
-                DOM.unsavedIndicator.style.display = modified ? 'inline-block' : 'none';
-            },
-            
-            addToHistory(content) {
-                // Remove any future history if we're not at the end
-                if (this.historyIndex < this.history.length - 1) {
-                    this.history = this.history.slice(0, this.historyIndex + 1);
-                }
-                
-                this.history.push(content);
-                
-                // Limit history size
-                if (this.history.length > this.maxHistory) {
-                    this.history.shift();
-                }
-                
-                this.historyIndex = this.history.length - 1;
-            },
-            
-            undo() {
-                if (this.historyIndex > 0) {
-                    this.historyIndex--;
-                    return this.history[this.historyIndex];
-                }
-                return null;
-            },
-            
-            redo() {
-                if (this.historyIndex < this.history.length - 1) {
-                    this.historyIndex++;
-                    return this.history[this.historyIndex];
-                }
-                return null;
-            }
-        };
-        
-        // ============================================================================
-        // VIEW MODE MANAGER
-        // ============================================================================
-        const ViewModeManager = {
-            setMode(mode) {
-                AppState.viewMode = mode;
-                
-                // Remove all view mode classes
-                DOM.mainContainer.classList.remove('editor-only', 'preview-only');
-                
-                // Apply the new mode
-                if (mode === 'editor') {
-                    DOM.mainContainer.classList.add('editor-only');
-                } else if (mode === 'preview') {
-                    DOM.mainContainer.classList.add('preview-only');
-                }
-                
-                // Update button states
-                DOM.viewEditorBtn.classList.toggle('active', mode === 'editor');
-                DOM.viewBothBtn.classList.toggle('active', mode === 'both');
-                DOM.viewPreviewBtn.classList.toggle('active', mode === 'preview');
-                
-                // Focus the appropriate pane
-                if (mode === 'editor') {
-                    DOM.editor.focus();
-                    AppState.activePane = 'editor';
-                } else if (mode === 'preview') {
-                    DOM.preview.focus();
-                    AppState.activePane = 'preview';
-                }
-                
-                Logger.info('ViewMode', `Switched to ${mode} view`);
-            }
-        };
-        
-        // ============================================================================
-        // TABLE OPERATIONS
-        // ============================================================================
-        const TableOps = {
-            openModal() {
-                this.updatePreview();
-                DOM.tableModal.classList.add('active');
-                DOM.tableRows.focus();
-            },
-            
-            closeModal() {
-                DOM.tableModal.classList.remove('active');
-                DOM.tableRows.value = '3';
-                DOM.tableCols.value = '3';
-            },
-            
-            updatePreview() {
-                const rows = parseInt(DOM.tableRows.value) || 3;
-                const cols = parseInt(DOM.tableCols.value) || 3;
-                
-                let html = '<table><thead><tr>';
-                for (let c = 0; c < cols; c++) {
-                    html += `<th>Header ${c + 1}</th>`;
-                }
-                html += '</tr></thead><tbody>';
-                
-                for (let r = 0; r < rows - 1; r++) {
-                    html += '<tr>';
-                    for (let c = 0; c < cols; c++) {
-                        html += `<td>Cell ${r + 1}-${c + 1}</td>`;
-                    }
-                    html += '</tr>';
-                }
-                html += '</tbody></table>';
-                
-                DOM.tablePreview.innerHTML = html;
-            },
-            
-            generateMarkdown(rows, cols) {
-                let md = '';
-                
-                // Header row
-                md += '|';
-                for (let c = 0; c < cols; c++) {
-                    md += ` Header ${c + 1} |`;
-                }
-                md += '\n';
-                
-                // Separator row
-                md += '|';
-                for (let c = 0; c < cols; c++) {
-                    md += ' --- |';
-                }
-                md += '\n';
-                
-                // Data rows
-                for (let r = 0; r < rows - 1; r++) {
-                    md += '|';
-                    for (let c = 0; c < cols; c++) {
-                        md += ` Cell ${r + 1}-${c + 1} |`;
-                    }
-                    md += '\n';
-                }
-                
-                return md;
-            },
-            
-            insert() {
-                const rows = parseInt(DOM.tableRows.value) || 3;
-                const cols = parseInt(DOM.tableCols.value) || 3;
-                
-                const tableMd = this.generateMarkdown(rows, cols);
-                
-                const editor = DOM.editor;
-                const start = editor.selectionStart;
-                const content = editor.value;
-                
-                // Add newlines before and after if needed
-                let prefix = '';
-                let suffix = '\n';
-                
-                if (start > 0 && content[start - 1] !== '\n') {
-                    prefix = '\n\n';
-                } else if (start > 1 && content[start - 2] !== '\n') {
-                    prefix = '\n';
-                }
-                
-                const insertText = prefix + tableMd + suffix;
-                editor.value = content.substring(0, start) + insertText + content.substring(editor.selectionEnd);
-                editor.selectionStart = editor.selectionEnd = start + insertText.length;
-                
-                EditorOps.updatePreviewNow();
-                AppState.setModified(true);
-                this.closeModal();
-                
-                Logger.info('Table', `Inserted ${rows}x${cols} table`);
-            }
-        };
-        
-        // ============================================================================
-        // EDITOR OPERATIONS
-        // ============================================================================
-        const EditorOps = {
-            /**
-             * Apply inline formatting to selected text in editor
-             */
-            applyInlineFormat(format) {
-                const editor = DOM.editor;
-                const start = editor.selectionStart;
-                const end = editor.selectionEnd;
-                const text = editor.value;
-                const selected = text.substring(start, end);
-                
-                let wrapper;
-                switch (format) {
-                    case 'bold': wrapper = '**'; break;
-                    case 'italic': wrapper = '*'; break;
-                    case 'underline': wrapper = '++'; break;
-                    case 'strike': wrapper = '~~'; break;
-                    case 'code': wrapper = '`'; break;
-                    default: return;
-                }
-                
-                // Check if already formatted
-                const beforeWrapper = text.substring(start - wrapper.length, start);
-                const afterWrapper = text.substring(end, end + wrapper.length);
-                
-                if (beforeWrapper === wrapper && afterWrapper === wrapper) {
-                    // Remove formatting
-                    editor.value = text.substring(0, start - wrapper.length) + 
-                                   selected + 
-                                   text.substring(end + wrapper.length);
-                    editor.selectionStart = start - wrapper.length;
-                    editor.selectionEnd = end - wrapper.length;
-                } else {
-                    // Add formatting
-                    const newText = wrapper + (selected || 'text') + wrapper;
-                    editor.value = text.substring(0, start) + newText + text.substring(end);
-                    editor.selectionStart = start + wrapper.length;
-                    editor.selectionEnd = end + wrapper.length;
-                }
-                
-                this.updatePreviewNow();
-                AppState.setModified(true);
-                Logger.info('Editor', `Applied ${format} formatting`);
-            },
-            
-            /**
-             * Apply block formatting (headers, lists, quotes)
-             */
-            applyBlockFormat(format) {
-                const editor = DOM.editor;
-                const start = editor.selectionStart;
-                const end = editor.selectionEnd;
-                const text = editor.value;
-                
-                // Find line boundaries
-                let lineStart = text.lastIndexOf('\n', start - 1) + 1;
-                let lineEnd = text.indexOf('\n', end);
-                if (lineEnd === -1) lineEnd = text.length;
-                
-                // Get all lines in selection
-                const selectedLines = text.substring(lineStart, lineEnd).split('\n');
-                
-                let newLines;
-                switch (format) {
-                    case 'h1':
-                    case 'h2':
-                    case 'h3':
-                    case 'h4':
-                    case 'h5':
-                    case 'h6':
-                        const level = parseInt(format.substring(1));
-                        const prefix = '#'.repeat(level) + ' ';
-                        newLines = selectedLines.map(line => {
-                            // Remove existing header
-                            line = line.replace(/^#{1,6}\s*/, '');
-                            return prefix + line;
-                        });
-                        break;
-                        
-                    case 'bullet':
-                        newLines = selectedLines.map(line => {
-                            // Check if already a bullet list
-                            if (/^[-*+]\s/.test(line)) {
-                                return line.replace(/^[-*+]\s/, '');
-                            }
-                            // Remove number list marker if present
-                            line = line.replace(/^\d+\.\s/, '');
-                            return '- ' + line;
-                        });
-                        break;
-                        
-                    case 'number':
-                        let num = 1;
-                        newLines = selectedLines.map(line => {
-                            // Check if already a numbered list
-                            if (/^\d+\.\s/.test(line)) {
-                                return line.replace(/^\d+\.\s/, '');
-                            }
-                            // Remove bullet marker if present
-                            line = line.replace(/^[-*+]\s/, '');
-                            return `${num++}. ${line}`;
-                        });
-                        break;
-                        
-                    case 'quoteIncrease':
-                        newLines = selectedLines.map(line => {
-                            // Check if there's content before a >
-                            if (line.match(/^[^>]+>/)) {
-                                alert('Quotes can only appear at the start of lines. Remove the text before ">" first.');
-                                return line;
-                            }
-                            return '> ' + line;
-                        });
-                        break;
-                        
-                    case 'quoteDecrease':
-                        newLines = selectedLines.map(line => {
-                            if (line.startsWith('> ')) {
-                                return line.substring(2);
-                            } else if (line.startsWith('>')) {
-                                return line.substring(1);
-                            }
-                            return line;
-                        });
-                        break;
-                        
-                    case 'codeBlock':
-                        const code = selectedLines.join('\n');
-                        newLines = ['```', code, '```'];
-                        break;
-                        
-                    case 'hr':
-                        newLines = ['---', ...selectedLines];
-                        break;
-                        
-                    default:
-                        return;
-                }
-                
-                const newContent = newLines.join('\n');
-                editor.value = text.substring(0, lineStart) + newContent + text.substring(lineEnd);
-                
-                // Update selection
-                editor.selectionStart = lineStart;
-                editor.selectionEnd = lineStart + newContent.length;
-                
-                this.updatePreviewNow();
-                AppState.setModified(true);
-                Logger.info('Editor', `Applied ${format} block formatting`);
-            },
-            
-            /**
-             * Insert link at cursor position
-             */
-            insertLink(text, url) {
-                const editor = DOM.editor;
-                const start = editor.selectionStart;
-                const content = editor.value;
-                
-                const linkMd = `[${text}](${url})`;
-                editor.value = content.substring(0, start) + linkMd + content.substring(editor.selectionEnd);
-                editor.selectionStart = editor.selectionEnd = start + linkMd.length;
-                
-                this.updatePreviewNow();
-                AppState.setModified(true);
-                Logger.info('Editor', `Inserted link: ${url}`);
-            },
-            
-            /**
-             * Insert image at cursor position
-             */
-            insertImage(alt, url) {
-                const editor = DOM.editor;
-                const start = editor.selectionStart;
-                const content = editor.value;
-                
-                const imgMd = `![${alt}](${url})`;
-                editor.value = content.substring(0, start) + imgMd + content.substring(editor.selectionEnd);
-                editor.selectionStart = editor.selectionEnd = start + imgMd.length;
-                
-                this.updatePreviewNow();
-                AppState.setModified(true);
-                Logger.info('Editor', `Inserted image: ${url}`);
-            },
-            
-            _previewTimer: null,
+        buttons.forEach(btn => {
+            if (btn) btn.classList.remove('active');
+        });
+    }
+};
 
-            /**
-             * Update preview pane from editor content (debounced)
-             */
-            updatePreview() {
-                if (this._previewTimer) clearTimeout(this._previewTimer);
-                this._previewTimer = setTimeout(() => {
-                    const markdown = DOM.editor.value;
-                    DOM.preview.innerHTML = MarkdownParser.parse(markdown);
-                    this.updateStatus();
-                }, 30);
-            },
-
-            /**
-             * Update preview immediately (for programmatic changes)
-             */
-            updatePreviewNow() {
-                if (this._previewTimer) clearTimeout(this._previewTimer);
-                const markdown = DOM.editor.value;
-                DOM.preview.innerHTML = MarkdownParser.parse(markdown);
-                this.updateStatus();
-            },
-            
-            /**
-             * Update status bar
-             */
-            updateStatus() {
-                const text = DOM.editor.value;
-                const lines = text.split('\n').length;
-                const words = text.trim() ? text.trim().split(/\s+/).length : 0;
-                const chars = text.length;
-                
-                DOM.statusRight.textContent = `Lines: ${lines} | Words: ${words} | Characters: ${chars}`;
+/* @requires-dom */
+// ============================================================================
+// FILE OPERATIONS
+// ============================================================================
+const FileOps = {
+    newDocument() {
+        if (AppState.isModified) {
+            if (!confirm('You have unsaved changes. Create a new document anyway?')) {
+                return;
             }
-        };
+        }
         
-        // ============================================================================
-        // PREVIEW OPERATIONS
-        // ============================================================================
-        const PreviewOps = {
-            /**
-             * Apply formatting in preview pane
-             */
-            applyFormat(format) {
-                const selection = window.getSelection();
-                if (!selection.rangeCount) return;
-                
-                const range = selection.getRangeAt(0);
-                
-                // Check if we're in the preview pane
-                if (!DOM.preview.contains(range.commonAncestorContainer)) {
-                    return;
-                }
-                
-                // Handle block formats differently
-                const blockFormats = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'bullet', 'number', 'quoteIncrease', 'quoteDecrease', 'codeBlock', 'hr'];
-                if (blockFormats.includes(format)) {
-                    this.applyBlockFormat(format, range);
-                } else {
-                    this.applyInlineFormat(format, range);
-                }
-            },
+        DOM.editor.value = '';
+        DOM.preview.innerHTML = '';
+        AppState.currentFile = null;
+        AppState.setModified(false);
+        this.updateFileNameDisplay();
+        EditorOps.updateStatus();
+        Logger.info('File', 'Created new document');
+    },
+    
+    openFile() {
+        DOM.fileInput.click();
+    },
+    
+    handleFileOpen(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        this.loadFile(file);
+        // Reset file input
+        event.target.value = '';
+    },
+    
+    loadFile(file) {
+        // Validate file type
+        const validExtensions = ['.md', '.txt', '.html'];
+        const extension = '.' + file.name.split('.').pop().toLowerCase();
+        
+        if (!validExtensions.includes(extension)) {
+            alert('Unsupported file type. Please use .md, .txt, or .html files.');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            let content = e.target.result;
             
-            /**
-             * Apply inline formatting in preview
-             */
-            applyInlineFormat(format, range) {
-                let tagName;
-                switch (format) {
-                    case 'bold': tagName = 'strong'; break;
-                    case 'italic': tagName = 'em'; break;
-                    case 'underline': tagName = 'u'; break;
-                    case 'strike': tagName = 'del'; break;
-                    case 'code': tagName = 'code'; break;
-                    default: return;
-                }
-                
-                // Check if already formatted
-                const parentTag = range.commonAncestorContainer.parentElement;
-                if (parentTag && parentTag.tagName.toLowerCase() === tagName) {
-                    // Remove formatting
-                    const text = document.createTextNode(parentTag.textContent);
-                    parentTag.parentNode.replaceChild(text, parentTag);
-                } else {
-                    // Add formatting
-                    const wrapper = document.createElement(tagName);
-                    wrapper.appendChild(range.extractContents());
-                    range.insertNode(wrapper);
-                }
-                
-                this.syncToEditor();
-                Logger.info('Preview', `Applied ${format} formatting`);
-            },
-            
-            /**
-             * Apply block formatting in preview
-             */
-            applyBlockFormat(format, range) {
-                // Find the block element(s) containing the selection
-                let startBlock = this.findBlockElement(range.startContainer);
-                let endBlock = this.findBlockElement(range.endContainer);
-                
-                if (!startBlock) {
-                    Logger.warn('Preview', 'Could not find block element for formatting');
-                    alert('Could not find block element. Please select some content first.');
-                    return;
-                }
-                
-                // Collect all block elements in the selection
-                const selectedBlocks = [];
-                const processedLists = new Set();
-                
-                // Get all elements that intersect with the selection
-                const walker = document.createTreeWalker(
-                    DOM.preview,
-                    NodeFilter.SHOW_ELEMENT,
-                    {
-                        acceptNode: (node) => {
-                            if (['P', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'LI', 'BLOCKQUOTE', 'UL', 'OL'].includes(node.tagName)) {
-                                return NodeFilter.FILTER_ACCEPT;
-                            }
-                            return NodeFilter.FILTER_SKIP;
-                        }
-                    }
-                );
-                
-                let node;
-                let foundStart = false;
-                
-                while (node = walker.nextNode()) {
-                    if (node === startBlock || node.contains(startBlock) || startBlock.contains(node)) {
-                        foundStart = true;
-                    }
-                    
-                    if (foundStart && range.intersectsNode(node)) {
-                        // Special handling for LI elements - get the parent list instead
-                        if (node.tagName === 'LI') {
-                            const parentList = node.closest('ul, ol');
-                            if (parentList && !processedLists.has(parentList)) {
-                                // Check if all list items are selected
-                                const listItems = Array.from(parentList.querySelectorAll(':scope > li'));
-                                const allSelected = listItems.every(li => range.intersectsNode(li));
-                                if (allSelected && (format === 'quoteIncrease' || format === 'quoteDecrease')) {
-                                    selectedBlocks.push(parentList);
-                                    processedLists.add(parentList);
-                                    continue;
-                                }
-                            }
-                        }
-                        
-                        if (!processedLists.has(node.closest('ul, ol'))) {
-                            selectedBlocks.push(node);
-                        }
-                    }
-                    
-                    if (node === endBlock || node.contains(endBlock)) {
-                        break;
-                    }
-                }
-                
-                // If no blocks found, use the start block
-                if (selectedBlocks.length === 0 && startBlock) {
-                    selectedBlocks.push(startBlock);
-                }
-                
-                // Apply formatting to each block
-                for (const block of selectedBlocks) {
-                    this.formatBlock(block, format);
-                }
-                
-                this.syncToEditor();
-                Logger.info('Preview', `Applied ${format} to ${selectedBlocks.length} block(s)`);
-            },
-            
-            /**
-             * Find the nearest block-level element
-             */
-            findBlockElement(node) {
-                while (node && node !== DOM.preview) {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        const tag = node.tagName.toLowerCase();
-                        if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre', 'ul', 'ol'].includes(tag)) {
-                            return node;
-                        }
-                    }
-                    node = node.parentNode;
-                }
-                // If no block parent found, wrap the text node in a <p>
-                if (node === DOM.preview) {
-                    const selection = window.getSelection();
-                    if (selection.rangeCount) {
-                        const range = selection.getRangeAt(0);
-                        const p = document.createElement('p');
-                        // Find the top-level nodes in preview that intersect the selection
-                        const children = Array.from(DOM.preview.childNodes);
-                        let first = null, last = null;
-                        for (const child of children) {
-                            if (range.intersectsNode(child)) {
-                                if (!first) first = child;
-                                last = child;
-                            }
-                        }
-                        if (first) {
-                            DOM.preview.insertBefore(p, first);
-                            let current = p.nextSibling;
-                            while (current) {
-                                const next = current.nextSibling;
-                                p.appendChild(current);
-                                if (current === last) break;
-                                current = next;
-                            }
-                            return p;
-                        }
-                    }
-                }
-                return null;
-            },
-            
-            /**
-             * Format a single block element
-             */
-            formatBlock(block, format) {
-                const tag = block.tagName.toLowerCase();
-                
-                switch (format) {
-                    case 'h1':
-                    case 'h2':
-                    case 'h3':
-                    case 'h4':
-                    case 'h5':
-                    case 'h6':
-                        this.convertToHeader(block, format);
-                        break;
-                        
-                    case 'bullet':
-                        this.convertToList(block, 'ul');
-                        break;
-                        
-                    case 'number':
-                        this.convertToList(block, 'ol');
-                        break;
-                        
-                    case 'quoteIncrease':
-                        this.increaseQuote(block);
-                        break;
-                        
-                    case 'quoteDecrease':
-                        this.decreaseQuote(block);
-                        break;
-                }
-            },
-            
-            /**
-             * Convert block to header
-             */
-            convertToHeader(block, level) {
-                const newHeader = document.createElement(level);
-                newHeader.innerHTML = block.innerHTML;
-                block.parentNode.replaceChild(newHeader, block);
-            },
-            
-            /**
-             * Convert block to list
-             */
-            convertToList(block, type) {
-                const tag = block.tagName.toLowerCase();
-                
-                if (tag === 'li') {
-                    // Toggle list type
-                    const parentList = block.parentElement;
-                    if (parentList.tagName.toLowerCase() !== type) {
-                        const newList = document.createElement(type);
-                        while (parentList.firstChild) {
-                            newList.appendChild(parentList.firstChild);
-                        }
-                        parentList.parentNode.replaceChild(newList, parentList);
-                    }
-                } else {
-                    // Convert to list
-                    const list = document.createElement(type);
-                    const li = document.createElement('li');
-                    li.innerHTML = block.innerHTML;
-                    list.appendChild(li);
-                    block.parentNode.replaceChild(list, block);
-                }
-            },
-            
-            /**
-             * Increase quote level
-             */
-            increaseQuote(block) {
-                const blockquote = document.createElement('blockquote');
-                
-                // Handle list elements specially - wrap the entire list
-                if (block.tagName === 'UL' || block.tagName === 'OL') {
-                    const clonedList = block.cloneNode(true);
-                    blockquote.appendChild(clonedList);
-                    block.parentNode.replaceChild(blockquote, block);
-                } else if (block.tagName === 'LI') {
-                    // Wrap the parent list
-                    const parentList = block.closest('ul, ol');
-                    if (parentList) {
-                        const clonedList = parentList.cloneNode(true);
-                        blockquote.appendChild(clonedList);
-                        parentList.parentNode.replaceChild(blockquote, parentList);
-                    }
-                } else {
-                    // Regular element
-                    const cloned = block.cloneNode(true);
-                    blockquote.appendChild(cloned);
-                    block.parentNode.replaceChild(blockquote, block);
-                }
-            },
-            
-            /**
-             * Decrease quote level
-             */
-            decreaseQuote(block) {
-                // Find the nearest blockquote parent
-                const blockquote = block.closest('blockquote');
-                if (!blockquote) return;
-                
-                // Move contents out of the blockquote
-                const parent = blockquote.parentNode;
-                while (blockquote.firstChild) {
-                    parent.insertBefore(blockquote.firstChild, blockquote);
-                }
-                parent.removeChild(blockquote);
-            },
-            
-            /**
-             * Sync preview changes back to editor
-             */
-            syncToEditor() {
-                const markdown = HtmlToMarkdown.convert(DOM.preview.innerHTML);
-                DOM.editor.value = markdown;
-                EditorOps.updateStatus();
-                AppState.setModified(true);
+            // If HTML file, convert to markdown
+            if (file.name.endsWith('.html')) {
+                const doc = new DOMParser().parseFromString(content, 'text/html');
+                content = HtmlToMarkdown.convert(doc.body ? doc.body.innerHTML : '');
             }
+            
+            DOM.editor.value = content;
+            EditorOps.updatePreviewNow();
+            AppState.currentFile = file.name;
+            AppState.setModified(false);
+            this.updateFileNameDisplay();
+            DOM.statusLeft.textContent = `Opened: ${file.name}`;
+            Logger.info('File', `Opened: ${file.name}`);
         };
-        
-        // ============================================================================
-        // ICON HIGHLIGHTING
-        // ============================================================================
-        const IconHighlighter = {
-            /**
-             * Check format at cursor position in editor
-             */
-            checkEditorFormats() {
-                const editor = DOM.editor;
-                const pos = editor.selectionStart;
-                const text = editor.value;
-                
-                // Find current line
-                let lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-                let lineEnd = text.indexOf('\n', pos);
-                if (lineEnd === -1) lineEnd = text.length;
-                const line = text.substring(lineStart, lineEnd);
-                
-                // Get text around cursor for inline formats
-                const before = text.substring(0, pos);
-                const after = text.substring(pos);
-                
-                // Reset all buttons
-                this.resetButtons();
-                
-                // Check inline formats
-                if (this.isWrappedBy(before, after, '**') || this.isWrappedBy(before, after, '__')) {
-                    DOM.boldBtn.classList.add('active');
-                }
-                if (this.isWrappedBy(before, after, '*') || this.isWrappedBy(before, after, '_')) {
-                    if (!this.isWrappedBy(before, after, '**')) {
-                        DOM.italicBtn.classList.add('active');
-                    }
-                }
-                if (this.isWrappedBy(before, after, '++')) {
-                    DOM.underlineBtn.classList.add('active');
-                }
-                if (this.isWrappedBy(before, after, '~~')) {
-                    DOM.strikeBtn.classList.add('active');
-                }
-                if (this.isWrappedBy(before, after, '`')) {
-                    DOM.codeBtn.classList.add('active');
-                }
-                
-                // Check block formats (most specific first to avoid overlap)
-                if (/^###### /.test(line)) DOM.h6Btn.classList.add('active');
-                else if (/^##### /.test(line)) DOM.h5Btn.classList.add('active');
-                else if (/^#### /.test(line)) DOM.h4Btn.classList.add('active');
-                else if (/^### /.test(line)) DOM.h3Btn.classList.add('active');
-                else if (/^## /.test(line)) DOM.h2Btn.classList.add('active');
-                else if (/^# /.test(line)) DOM.h1Btn.classList.add('active');
-                if (/^[-*+] /.test(line)) DOM.bulletBtn.classList.add('active');
-                if (/^\d+\. /.test(line)) DOM.numberBtn.classList.add('active');
-                if (/^>/.test(line)) DOM.quoteIncreaseBtn.classList.add('active');
-                
-                // Check for links and images
-                if (/\[([^\]]+)\]\(([^)]+)\)/.test(line)) {
-                    // Check if cursor is within a link
-                    const linkMatch = line.match(/\[([^\]]+)\]\(([^)]+)\)/);
-                    if (linkMatch) {
-                        const linkStart = lineStart + line.indexOf(linkMatch[0]);
-                        const linkEnd = linkStart + linkMatch[0].length;
-                        if (pos >= linkStart && pos <= linkEnd) {
-                            DOM.linkBtn.classList.add('active');
-                        }
-                    }
-                }
-                if (/!\[([^\]]*)\]\(([^)]+)\)/.test(line)) {
-                    const imgMatch = line.match(/!\[([^\]]*)\]\(([^)]+)\)/);
-                    if (imgMatch) {
-                        const imgStart = lineStart + line.indexOf(imgMatch[0]);
-                        const imgEnd = imgStart + imgMatch[0].length;
-                        if (pos >= imgStart && pos <= imgEnd) {
-                            DOM.imageBtn.classList.add('active');
-                        }
-                    }
-                }
-            },
-            
-            /**
-             * Check format at cursor position in preview
-             */
-            checkPreviewFormats() {
-                const selection = window.getSelection();
-                if (!selection.rangeCount) return;
-                
-                let node = selection.anchorNode;
-                if (!node || !DOM.preview.contains(node)) return;
-                
-                // Reset all buttons
-                this.resetButtons();
-                
-                // Walk up the tree and check for formatting elements
-                while (node && node !== DOM.preview) {
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        const tag = node.tagName.toLowerCase();
-                        
-                        switch (tag) {
-                            case 'strong':
-                            case 'b':
-                                DOM.boldBtn.classList.add('active');
-                                break;
-                            case 'em':
-                            case 'i':
-                                DOM.italicBtn.classList.add('active');
-                                break;
-                            case 'u':
-                                DOM.underlineBtn.classList.add('active');
-                                break;
-                            case 'del':
-                            case 's':
-                                DOM.strikeBtn.classList.add('active');
-                                break;
-                            case 'code':
-                                DOM.codeBtn.classList.add('active');
-                                break;
-                            case 'h1':
-                                DOM.h1Btn.classList.add('active');
-                                break;
-                            case 'h2':
-                                DOM.h2Btn.classList.add('active');
-                                break;
-                            case 'h3':
-                                DOM.h3Btn.classList.add('active');
-                                break;
-                            case 'h4':
-                                DOM.h4Btn.classList.add('active');
-                                break;
-                            case 'h5':
-                                DOM.h5Btn.classList.add('active');
-                                break;
-                            case 'h6':
-                                DOM.h6Btn.classList.add('active');
-                                break;
-                            case 'li':
-                                const parent = node.parentElement;
-                                if (parent.tagName === 'UL') DOM.bulletBtn.classList.add('active');
-                                if (parent.tagName === 'OL') DOM.numberBtn.classList.add('active');
-                                break;
-                            case 'blockquote':
-                                DOM.quoteIncreaseBtn.classList.add('active');
-                                break;
-                            case 'a':
-                                DOM.linkBtn.classList.add('active');
-                                break;
-                            case 'img':
-                                DOM.imageBtn.classList.add('active');
-                                break;
-                        }
-                    }
-                    node = node.parentNode;
-                }
-            },
-            
-            /**
-             * Check if text is wrapped by a marker
-             */
-            isWrappedBy(before, after, marker) {
-                const len = marker.length;
-                // Check if marker appears before cursor and after cursor
-                const beforeHas = before.lastIndexOf(marker) > before.lastIndexOf('\n');
-                const afterHas = after.indexOf(marker) !== -1 && after.indexOf(marker) < after.indexOf('\n');
-                return beforeHas && afterHas;
-            },
-            
-            /**
-             * Reset all button states
-             */
-            resetButtons() {
-                const buttons = [
-                    DOM.boldBtn, DOM.italicBtn, DOM.underlineBtn, DOM.strikeBtn,
-                    DOM.h1Btn, DOM.h2Btn, DOM.h3Btn, DOM.h4Btn, DOM.h5Btn, DOM.h6Btn,
-                    DOM.bulletBtn, DOM.numberBtn, DOM.quoteIncreaseBtn,
-                    DOM.linkBtn, DOM.imageBtn, DOM.codeBtn
-                ];
-                
-                buttons.forEach(btn => {
-                    if (btn) btn.classList.remove('active');
-                });
-            }
+        reader.onerror = () => {
+            alert('Error reading file. Please try again.');
+            Logger.error('File', `Error reading: ${file.name}`);
         };
+        reader.readAsText(file);
+    },
+    
+    saveFile() {
+        this.exportAs('md');
+    },
+    
+    exportAs(format) {
+        const markdown = DOM.editor.value;
+        let content, mimeType, extension;
         
-        // ============================================================================
-        // FILE OPERATIONS
-        // ============================================================================
-        const FileOps = {
-            newDocument() {
-                if (AppState.isModified) {
-                    if (!confirm('You have unsaved changes. Create a new document anyway?')) {
-                        return;
-                    }
-                }
+        switch (format) {
+            case 'md':
+                content = markdown;
+                mimeType = 'text/markdown';
+                extension = '.md';
+                break;
                 
-                DOM.editor.value = '';
-                DOM.preview.innerHTML = '';
-                AppState.currentFile = null;
-                AppState.setModified(false);
-                this.updateFileNameDisplay();
-                EditorOps.updateStatus();
-                Logger.info('File', 'Created new document');
-            },
-            
-            openFile() {
-                DOM.fileInput.click();
-            },
-            
-            handleFileOpen(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-                this.loadFile(file);
-                // Reset file input
-                event.target.value = '';
-            },
-            
-            loadFile(file) {
-                // Validate file type
-                const validExtensions = ['.md', '.txt', '.html'];
-                const extension = '.' + file.name.split('.').pop().toLowerCase();
+            case 'html':
+                const htmlContent = MarkdownParser.parse(markdown);
+                content = this.generateHtmlDocument(htmlContent);
+                mimeType = 'text/html';
+                extension = '.html';
+                break;
                 
-                if (!validExtensions.includes(extension)) {
-                    alert('Unsupported file type. Please use .md, .txt, or .html files.');
-                    return;
-                }
+            case 'txt':
+                // Strip markdown formatting for plain text
+                content = this.stripMarkdown(markdown);
+                mimeType = 'text/plain';
+                extension = '.txt';
+                break;
                 
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    let content = e.target.result;
-                    
-                    // If HTML file, convert to markdown
-                    if (file.name.endsWith('.html')) {
-                        const temp = document.createElement('div');
-                        temp.innerHTML = content;
-                        content = HtmlToMarkdown.convert(temp.innerHTML);
-                    }
-                    
-                    DOM.editor.value = content;
-                    EditorOps.updatePreviewNow();
-                    AppState.currentFile = file.name;
-                    AppState.setModified(false);
-                    this.updateFileNameDisplay();
-                    DOM.statusLeft.textContent = `Opened: ${file.name}`;
-                    Logger.info('File', `Opened: ${file.name}`);
-                };
-                reader.onerror = () => {
-                    alert('Error reading file. Please try again.');
-                    Logger.error('File', `Error reading: ${file.name}`);
-                };
-                reader.readAsText(file);
-            },
-            
-            saveFile() {
-                this.exportAs('md');
-            },
-            
-            exportAs(format) {
-                const markdown = DOM.editor.value;
-                let content, mimeType, extension;
-                
-                switch (format) {
-                    case 'md':
-                        content = markdown;
-                        mimeType = 'text/markdown';
-                        extension = '.md';
-                        break;
-                        
-                    case 'html':
-                        const htmlContent = MarkdownParser.parse(markdown);
-                        content = this.generateHtmlDocument(htmlContent);
-                        mimeType = 'text/html';
-                        extension = '.html';
-                        break;
-                        
-                    case 'txt':
-                        // Strip markdown formatting for plain text
-                        content = this.stripMarkdown(markdown);
-                        mimeType = 'text/plain';
-                        extension = '.txt';
-                        break;
-                        
-                    default:
-                        return;
-                }
-                
-                const blob = new Blob([content], { type: mimeType });
-                const url = URL.createObjectURL(blob);
-                
-                // Get base filename without extension
-                let baseName = 'document';
-                if (AppState.currentFile) {
-                    baseName = AppState.currentFile.replace(/\.[^/.]+$/, '');
-                }
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = baseName + extension;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                if (format === 'md') {
-                    AppState.setModified(false);
-                    AppState.currentFile = a.download;
-                    this.updateFileNameDisplay();
-                }
-                
-                DOM.statusLeft.textContent = `Exported: ${a.download}`;
-                Logger.info('File', `Exported as ${format.toUpperCase()}: ${a.download}`);
-            },
-            
-            generateHtmlDocument(bodyContent) {
-                return `<!DOCTYPE html>
+            default:
+                return;
+        }
+        
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        
+        // Get base filename without extension
+        let baseName = 'document';
+        if (AppState.currentFile) {
+            baseName = AppState.currentFile.replace(/\.[^/.]+$/, '');
+        }
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = baseName + extension;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        if (format === 'md') {
+            AppState.setModified(false);
+            AppState.currentFile = a.download;
+            this.updateFileNameDisplay();
+        }
+        
+        DOM.statusLeft.textContent = `Downloaded: ${a.download}`;
+        Logger.info('File', `Downloaded as ${format.toUpperCase()}: ${a.download}`);
+    },
+    
+    generateHtmlDocument(bodyContent) {
+        return `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${AppState.currentFile ? AppState.currentFile.replace(/\.[^/.]+$/, '') : 'Document'}</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 0 20px;
-            line-height: 1.6;
-            color: #333;
-        }
-        h1, h2, h3, h4, h5, h6 { margin-top: 1.5em; margin-bottom: 0.5em; }
-        h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
-        h2 { border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
-        code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; font-size: 0.9em; }
-        pre { background: #1f2937; color: #f9fafb; padding: 16px; border-radius: 8px; overflow-x: auto; }
-        pre code { background: none; padding: 0; color: inherit; }
-        blockquote { border-left: 4px solid #3b82f6; margin: 1em 0; padding: 0.5em 1em; background: #eff6ff; }
-        a { color: #2563eb; }
-        img { max-width: 100%; height: auto; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-        th { background: #f9f9f9; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px;
+    line-height: 1.6;
+    color: #333;
+}
+h1, h2, h3, h4, h5, h6 { margin-top: 1.5em; margin-bottom: 0.5em; }
+h1 { border-bottom: 2px solid #eee; padding-bottom: 0.3em; }
+h2 { border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; font-size: 0.9em; }
+pre { background: #1f2937; color: #f9fafb; padding: 16px; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; color: inherit; }
+blockquote { border-left: 4px solid #3b82f6; margin: 1em 0; padding: 0.5em 1em; background: #eff6ff; }
+a { color: #2563eb; }
+img { max-width: 100%; height: auto; }
+table { border-collapse: collapse; width: 100%; }
+th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+th { background: #f9f9f9; }
     </style>
 </head>
 <body>
 ${bodyContent}
 </body>
 </html>`;
-            },
-            
-            stripMarkdown(markdown) {
-                let text = markdown;
-                // Remove headers
-                text = text.replace(/^#{1,6}\s+/gm, '');
-                // Remove bold/italic
-                text = text.replace(/\*\*(.+?)\*\*/g, '$1');
-                text = text.replace(/\*(.+?)\*/g, '$1');
-                text = text.replace(/__(.+?)__/g, '$1');
-                text = text.replace(/_(.+?)_/g, '$1');
-                // Remove strikethrough
-                text = text.replace(/~~(.+?)~~/g, '$1');
-                // Remove links but keep text
-                text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
-                // Remove images
-                text = text.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');
-                // Remove inline code
-                text = text.replace(/`([^`]+)`/g, '$1');
-                // Remove code blocks
-                text = text.replace(/```[\s\S]*?```/g, '');
-                // Remove blockquotes
-                text = text.replace(/^>\s*/gm, '');
-                // Remove list markers
-                text = text.replace(/^[-*+]\s+/gm, '');
-                text = text.replace(/^\d+\.\s+/gm, '');
-                // Remove horizontal rules
-                text = text.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '');
-                return text;
-            },
-            
-            updateFileNameDisplay() {
-                if (DOM.fileNameDisplay) {
-                    DOM.fileNameDisplay.textContent = AppState.currentFile || '';
-                }
-            }
-        };
+    },
+    
+    stripMarkdown(markdown) {
+        let text = markdown;
+        // Remove headers
+        text = text.replace(/^#{1,6}\s+/gm, '');
+        // Remove bold/italic
+        text = text.replace(/\*\*(.+?)\*\*/g, '$1');
+        text = text.replace(/\*(.+?)\*/g, '$1');
+        text = text.replace(/__(.+?)__/g, '$1');
+        text = text.replace(/_(.+?)_/g, '$1');
+        // Remove strikethrough
+        text = text.replace(/~~(.+?)~~/g, '$1');
+        // Remove links but keep text
+        text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+        // Remove images
+        text = text.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');
+        // Remove inline code
+        text = text.replace(/`([^`]+)`/g, '$1');
+        // Remove code blocks
+        text = text.replace(/```[\s\S]*?```/g, '');
+        // Remove blockquotes
+        text = text.replace(/^>\s*/gm, '');
+        // Remove list markers
+        text = text.replace(/^[-*+]\s+/gm, '');
+        text = text.replace(/^\d+\.\s+/gm, '');
+        // Remove horizontal rules
+        text = text.replace(/^(-{3,}|\*{3,}|_{3,})$/gm, '');
+        return text;
+    },
+    
+    updateFileNameDisplay() {
+        if (DOM.fileNameDisplay) {
+            DOM.fileNameDisplay.textContent = AppState.currentFile || '';
+        }
+    }
+};
+
+// ============================================================================
+// DRAG AND DROP HANDLER
+// ============================================================================
+const DragDropHandler = {
+    dragCounter: 0,
+    
+    init() {
+        // Prevent default drag behaviors on document
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            document.body.addEventListener(eventName, this.preventDefaults, false);
+        });
         
-        // ============================================================================
-        // DRAG AND DROP HANDLER
-        // ============================================================================
-        const DragDropHandler = {
-            dragCounter: 0,
-            
-            init() {
-                // Prevent default drag behaviors on document
-                ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                    document.body.addEventListener(eventName, this.preventDefaults, false);
-                });
-                
-                // Handle drag enter/leave for overlay
-                document.body.addEventListener('dragenter', (e) => this.handleDragEnter(e), false);
-                document.body.addEventListener('dragleave', (e) => this.handleDragLeave(e), false);
-                document.body.addEventListener('dragover', (e) => this.handleDragOver(e), false);
-                document.body.addEventListener('drop', (e) => this.handleDrop(e), false);
-                
-                Logger.info('DragDrop', 'Drag and drop initialized');
-            },
-            
-            preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            },
-            
-            handleDragEnter(e) {
-                this.dragCounter++;
-                
-                // Check if dragging files
-                if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
-                    DOM.dragOverlay.classList.add('active');
-                }
-            },
-            
-            handleDragLeave(e) {
-                this.dragCounter--;
-                
-                if (this.dragCounter === 0) {
-                    DOM.dragOverlay.classList.remove('active');
-                }
-            },
-            
-            handleDragOver(e) {
-                e.dataTransfer.dropEffect = 'copy';
-            },
-            
-            handleDrop(e) {
-                this.dragCounter = 0;
-                DOM.dragOverlay.classList.remove('active');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    // Only handle the first file
-                    const file = files[0];
-                    
-                    // Check for unsaved changes
-                    if (AppState.isModified) {
-                        if (!confirm('You have unsaved changes. Load the dropped file anyway?')) {
-                            return;
-                        }
-                    }
-                    
-                    FileOps.loadFile(file);
-                    Logger.info('DragDrop', `File dropped: ${file.name}`);
-                }
-            }
-        };
+        // Handle drag enter/leave for overlay
+        document.body.addEventListener('dragenter', (e) => this.handleDragEnter(e), false);
+        document.body.addEventListener('dragleave', (e) => this.handleDragLeave(e), false);
+        document.body.addEventListener('dragover', (e) => this.handleDragOver(e), false);
+        document.body.addEventListener('drop', (e) => this.handleDrop(e), false);
         
-        // ============================================================================
-        // MODAL HANDLERS
-        // ============================================================================
-        const ModalOps = {
-            openLinkModal() {
-                // Check if cursor is on an existing link
-                const selection = window.getSelection();
-                let existingText = '';
-                let existingUrl = '';
-                
-                if (AppState.activePane === 'editor') {
-                    const editor = DOM.editor;
-                    const pos = editor.selectionStart;
-                    const text = editor.value;
-                    
-                    // Find current line
-                    let lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-                    let lineEnd = text.indexOf('\n', pos);
-                    if (lineEnd === -1) lineEnd = text.length;
-                    const line = text.substring(lineStart, lineEnd);
-                    
-                    // Check for link at cursor position
-                    const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-                    let match;
-                    while ((match = linkRegex.exec(line)) !== null) {
-                        const linkStart = lineStart + match.index;
-                        const linkEnd = linkStart + match[0].length;
-                        if (pos >= linkStart && pos <= linkEnd) {
-                            existingText = match[1];
-                            existingUrl = match[2];
-                            break;
-                        }
-                    }
-                    
-                    // If no existing link, use selected text
-                    if (!existingText && editor.selectionStart !== editor.selectionEnd) {
-                        existingText = text.substring(editor.selectionStart, editor.selectionEnd);
-                    }
-                } else if (AppState.activePane === 'preview') {
-                    // Check for link in preview
-                    if (selection.rangeCount) {
-                        let node = selection.anchorNode;
-                        while (node && node !== DOM.preview) {
-                            if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'A') {
-                                existingText = node.textContent;
-                                existingUrl = node.getAttribute('href');
-                                break;
-                            }
-                            node = node.parentNode;
-                        }
-                        
-                        if (!existingText) {
-                            existingText = selection.toString();
-                        }
-                    }
-                }
-                
-                DOM.linkText.value = existingText;
-                DOM.linkUrl.value = existingUrl;
-                DOM.linkModal.classList.add('active');
-                DOM.linkText.focus();
-            },
+        Logger.info('DragDrop', 'Drag and drop initialized');
+    },
+    
+    preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    },
+    
+    handleDragEnter(e) {
+        this.dragCounter++;
+        
+        // Check if dragging files
+        if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+            DOM.dragOverlay.classList.add('active');
+        }
+    },
+    
+    handleDragLeave(e) {
+        this.dragCounter--;
+        
+        if (this.dragCounter === 0) {
+            DOM.dragOverlay.classList.remove('active');
+        }
+    },
+    
+    handleDragOver(e) {
+        e.dataTransfer.dropEffect = 'copy';
+    },
+    
+    handleDrop(e) {
+        this.dragCounter = 0;
+        DOM.dragOverlay.classList.remove('active');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            // Only handle the first file
+            const file = files[0];
             
-            closeLinkModal() {
-                DOM.linkModal.classList.remove('active');
-                DOM.linkText.value = '';
-                DOM.linkUrl.value = '';
-            },
-            
-            submitLink() {
-                const text = DOM.linkText.value.trim();
-                const url = DOM.linkUrl.value.trim();
-                
-                if (!text || !url) {
-                    alert('Please enter both link text and URL');
+            // Check for unsaved changes
+            if (AppState.isModified) {
+                if (!confirm('You have unsaved changes. Load the dropped file anyway?')) {
                     return;
                 }
-                
-                if (AppState.activePane === 'editor') {
-                    EditorOps.insertLink(text, url);
-                } else {
-                    // Insert in preview
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.textContent = text;
-                    
-                    const selection = window.getSelection();
-                    if (selection.rangeCount) {
-                        const range = selection.getRangeAt(0);
-                        range.deleteContents();
-                        range.insertNode(a);
-                    }
-                    PreviewOps.syncToEditor();
-                }
-                
-                this.closeLinkModal();
-            },
-            
-            openImageModal() {
-                // Check if cursor is on an existing image
-                let existingAlt = '';
-                let existingUrl = '';
-                
-                if (AppState.activePane === 'editor') {
-                    const editor = DOM.editor;
-                    const pos = editor.selectionStart;
-                    const text = editor.value;
-                    
-                    // Find current line
-                    let lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-                    let lineEnd = text.indexOf('\n', pos);
-                    if (lineEnd === -1) lineEnd = text.length;
-                    const line = text.substring(lineStart, lineEnd);
-                    
-                    // Check for image at cursor position
-                    const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
-                    let match;
-                    while ((match = imgRegex.exec(line)) !== null) {
-                        const imgStart = lineStart + match.index;
-                        const imgEnd = imgStart + match[0].length;
-                        if (pos >= imgStart && pos <= imgEnd) {
-                            existingAlt = match[1];
-                            existingUrl = match[2];
-                            break;
-                        }
-                    }
-                } else if (AppState.activePane === 'preview') {
-                    const selection = window.getSelection();
-                    if (selection.rangeCount) {
-                        let node = selection.anchorNode;
-                        while (node && node !== DOM.preview) {
-                            if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'IMG') {
-                                existingAlt = node.getAttribute('alt') || '';
-                                existingUrl = node.getAttribute('src') || '';
-                                break;
-                            }
-                            node = node.parentNode;
-                        }
-                    }
-                }
-                
-                DOM.imageAlt.value = existingAlt;
-                DOM.imageUrl.value = existingUrl;
-                DOM.imageModal.classList.add('active');
-                DOM.imageAlt.focus();
-            },
-            
-            closeImageModal() {
-                DOM.imageModal.classList.remove('active');
-                DOM.imageAlt.value = '';
-                DOM.imageUrl.value = '';
-            },
-            
-            submitImage() {
-                const alt = DOM.imageAlt.value.trim();
-                const url = DOM.imageUrl.value.trim();
-                
-                if (!url) {
-                    alert('Please enter an image URL');
-                    return;
-                }
-                
-                if (AppState.activePane === 'editor') {
-                    EditorOps.insertImage(alt, url);
-                } else {
-                    // Insert in preview
-                    const img = document.createElement('img');
-                    img.src = url;
-                    img.alt = alt;
-                    
-                    const selection = window.getSelection();
-                    if (selection.rangeCount) {
-                        const range = selection.getRangeAt(0);
-                        range.deleteContents();
-                        range.insertNode(img);
-                    }
-                    PreviewOps.syncToEditor();
-                }
-                
-                this.closeImageModal();
             }
-        };
+            
+            FileOps.loadFile(file);
+            Logger.info('DragDrop', `File dropped: ${file.name}`);
+        }
+    }
+};
+
+/* @requires-dom */
+// ============================================================================
+// MODAL HANDLERS
+// ============================================================================
+const ModalOps = {
+    openLinkModal() {
+        // Check if cursor is on an existing link
+        const selection = window.getSelection();
+        let existingText = '';
+        let existingUrl = '';
         
-        // ============================================================================
-        // EVENT HANDLERS
-        // ============================================================================
-        function setupEventListeners() {
-            // Editor input
-            DOM.editor.addEventListener('input', () => {
-                EditorOps.updatePreview();
-                AppState.addToHistory(DOM.editor.value);
-                AppState.setModified(true);
-            });
+        if (AppState.activePane === 'editor') {
+            const editor = DOM.editor;
+            const pos = editor.selectionStart;
+            const text = editor.value;
             
-            // Editor selection change
-            DOM.editor.addEventListener('keyup', () => IconHighlighter.checkEditorFormats());
-            DOM.editor.addEventListener('click', () => IconHighlighter.checkEditorFormats());
-            DOM.editor.addEventListener('focus', () => {
-                AppState.activePane = 'editor';
-                IconHighlighter.checkEditorFormats();
-            });
+            const { lineStart, lineEnd } = EditorOps.lineBounds(text, pos, pos);
+            const line = text.substring(lineStart, lineEnd);
             
-            // Preview events
-            DOM.preview.addEventListener('input', () => {
-                PreviewOps.syncToEditor();
-            });
-            
-            DOM.preview.addEventListener('keyup', () => IconHighlighter.checkPreviewFormats());
-            DOM.preview.addEventListener('click', () => IconHighlighter.checkPreviewFormats());
-            DOM.preview.addEventListener('focus', () => {
-                AppState.activePane = 'preview';
-                IconHighlighter.checkPreviewFormats();
-            });
-            
-            // File Menu
-            DOM.fileMenuBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                DOM.fileMenu.classList.toggle('open');
-            });
-            
-            // Close file menu when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!DOM.fileMenu.contains(e.target)) {
-                    DOM.fileMenu.classList.remove('open');
+            // Check for link at cursor position
+            const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+            let match;
+            while ((match = linkRegex.exec(line)) !== null) {
+                const linkStart = lineStart + match.index;
+                const linkEnd = linkStart + match[0].length;
+                if (pos >= linkStart && pos <= linkEnd) {
+                    existingText = match[1];
+                    existingUrl = match[2];
+                    break;
                 }
-            });
+            }
             
-            // File menu items
-            DOM.menuNew.addEventListener('click', () => {
-                FileOps.newDocument();
-                DOM.fileMenu.classList.remove('open');
-            });
-            DOM.menuOpen.addEventListener('click', () => {
-                FileOps.openFile();
-                DOM.fileMenu.classList.remove('open');
-            });
-            DOM.menuSave.addEventListener('click', () => {
-                FileOps.saveFile();
-                DOM.fileMenu.classList.remove('open');
-            });
-            DOM.exportMd.addEventListener('click', () => {
-                FileOps.exportAs('md');
-                DOM.fileMenu.classList.remove('open');
-            });
-            DOM.exportHtml.addEventListener('click', () => {
-                FileOps.exportAs('html');
-                DOM.fileMenu.classList.remove('open');
-            });
-            DOM.exportTxt.addEventListener('click', () => {
-                FileOps.exportAs('txt');
-                DOM.fileMenu.classList.remove('open');
-            });
-            DOM.fileInput.addEventListener('change', (e) => FileOps.handleFileOpen(e));
-            
-            // Format buttons
-            DOM.boldBtn.addEventListener('click', () => handleFormat('bold'));
-            DOM.italicBtn.addEventListener('click', () => handleFormat('italic'));
-            DOM.underlineBtn.addEventListener('click', () => handleFormat('underline'));
-            DOM.strikeBtn.addEventListener('click', () => handleFormat('strike'));
-            DOM.h1Btn.addEventListener('click', () => handleFormat('h1'));
-            DOM.h2Btn.addEventListener('click', () => handleFormat('h2'));
-            DOM.h3Btn.addEventListener('click', () => handleFormat('h3'));
-            DOM.h4Btn.addEventListener('click', () => handleFormat('h4'));
-            DOM.h5Btn.addEventListener('click', () => handleFormat('h5'));
-            DOM.h6Btn.addEventListener('click', () => handleFormat('h6'));
-            DOM.bulletBtn.addEventListener('click', () => handleFormat('bullet'));
-            DOM.numberBtn.addEventListener('click', () => handleFormat('number'));
-            DOM.quoteIncreaseBtn.addEventListener('click', () => handleFormat('quoteIncrease'));
-            DOM.quoteDecreaseBtn.addEventListener('click', () => handleFormat('quoteDecrease'));
-            DOM.codeBtn.addEventListener('click', () => handleFormat('code'));
-            DOM.codeBlockBtn.addEventListener('click', () => handleFormat('codeBlock'));
-            DOM.hrBtn.addEventListener('click', () => handleFormat('hr'));
-            
-            // Table button
-            DOM.tableBtn.addEventListener('click', () => TableOps.openModal());
-            
-            // View mode buttons
-            DOM.viewEditorBtn.addEventListener('click', () => ViewModeManager.setMode('editor'));
-            DOM.viewBothBtn.addEventListener('click', () => ViewModeManager.setMode('both'));
-            DOM.viewPreviewBtn.addEventListener('click', () => ViewModeManager.setMode('preview'));
-            
-            // Link and image buttons
-            DOM.linkBtn.addEventListener('click', () => ModalOps.openLinkModal());
-            DOM.imageBtn.addEventListener('click', () => ModalOps.openImageModal());
-            
-            // Modal buttons
-            DOM.linkCancel.addEventListener('click', () => ModalOps.closeLinkModal());
-            DOM.linkSubmit.addEventListener('click', () => ModalOps.submitLink());
-            DOM.imageCancel.addEventListener('click', () => ModalOps.closeImageModal());
-            DOM.imageSubmit.addEventListener('click', () => ModalOps.submitImage());
-            DOM.tableCancel.addEventListener('click', () => TableOps.closeModal());
-            DOM.tableSubmit.addEventListener('click', () => TableOps.insert());
-            
-            // Table preview update on input change
-            DOM.tableRows.addEventListener('input', () => TableOps.updatePreview());
-            DOM.tableCols.addEventListener('input', () => TableOps.updatePreview());
-            
-            // Modal overlay click to close
-            DOM.linkModal.addEventListener('click', (e) => {
-                if (e.target === DOM.linkModal) ModalOps.closeLinkModal();
-            });
-            DOM.imageModal.addEventListener('click', (e) => {
-                if (e.target === DOM.imageModal) ModalOps.closeImageModal();
-            });
-            DOM.tableModal.addEventListener('click', (e) => {
-                if (e.target === DOM.tableModal) TableOps.closeModal();
-            });
-            
-            // Modal Enter key
-            DOM.linkUrl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') ModalOps.submitLink();
-            });
-            DOM.imageUrl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') ModalOps.submitImage();
-            });
-            DOM.tableCols.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') TableOps.insert();
-            });
-            
-            // Keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                if (e.ctrlKey || e.metaKey) {
-                    switch (e.key.toLowerCase()) {
-                        case 'n':
-                            e.preventDefault();
-                            FileOps.newDocument();
-                            break;
-                        case 'o':
-                            e.preventDefault();
-                            FileOps.openFile();
-                            break;
-                        case 'b':
-                            e.preventDefault();
-                            handleFormat('bold');
-                            break;
-                        case 'i':
-                            e.preventDefault();
-                            handleFormat('italic');
-                            break;
-                        case 'u':
-                            e.preventDefault();
-                            handleFormat('underline');
-                            break;
-                        case 'k':
-                            e.preventDefault();
-                            ModalOps.openLinkModal();
-                            break;
-                        case 's':
-                            e.preventDefault();
-                            FileOps.saveFile();
-                            break;
+            // If no existing link, use selected text
+            if (!existingText && editor.selectionStart !== editor.selectionEnd) {
+                existingText = text.substring(editor.selectionStart, editor.selectionEnd);
+            }
+        } else if (AppState.activePane === 'preview') {
+            // Check for link in preview
+            if (selection.rangeCount) {
+                let node = selection.anchorNode;
+                while (node && node !== DOM.preview) {
+                    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'A') {
+                        existingText = node.textContent;
+                        existingUrl = node.getAttribute('href');
+                        break;
                     }
+                    node = node.parentNode;
                 }
                 
-                // Escape to close modals and file menu
-                if (e.key === 'Escape') {
-                    ModalOps.closeLinkModal();
-                    ModalOps.closeImageModal();
-                    TableOps.closeModal();
-                    DOM.fileMenu.classList.remove('open');
+                if (!existingText) {
+                    existingText = selection.toString();
                 }
-            });
+            }
+        }
+        
+        DOM.linkText.value = existingText;
+        DOM.linkUrl.value = existingUrl;
+        DOM.linkModal.classList.add('active');
+        DOM.linkText.focus();
+    },
+    
+    closeLinkModal() {
+        DOM.linkModal.classList.remove('active');
+        DOM.linkText.value = '';
+        DOM.linkUrl.value = '';
+    },
+    
+    submitLink() {
+        const text = DOM.linkText.value.trim();
+        const url = DOM.linkUrl.value.trim();
+        
+        if (!text || !url) {
+            alert('Please enter both link text and URL');
+            return;
+        }
+        
+        if (AppState.activePane === 'editor') {
+            EditorOps.insertLink(text, url);
+        } else {
+            // Insert in preview
+            const a = document.createElement('a');
+            a.href = url;
+            a.textContent = text;
             
-            // Before unload warning
-            window.addEventListener('beforeunload', (e) => {
-                if (AppState.isModified) {
+            const selection = window.getSelection();
+            if (selection.rangeCount) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(a);
+            }
+            PreviewOps.syncToEditor();
+        }
+        
+        this.closeLinkModal();
+    },
+    
+    openImageModal() {
+        // Check if cursor is on an existing image
+        let existingAlt = '';
+        let existingUrl = '';
+        
+        if (AppState.activePane === 'editor') {
+            const editor = DOM.editor;
+            const pos = editor.selectionStart;
+            const text = editor.value;
+            
+            const { lineStart, lineEnd } = EditorOps.lineBounds(text, pos, pos);
+            const line = text.substring(lineStart, lineEnd);
+            
+            // Check for image at cursor position
+            const imgRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
+            let match;
+            while ((match = imgRegex.exec(line)) !== null) {
+                const imgStart = lineStart + match.index;
+                const imgEnd = imgStart + match[0].length;
+                if (pos >= imgStart && pos <= imgEnd) {
+                    existingAlt = match[1];
+                    existingUrl = match[2];
+                    break;
+                }
+            }
+        } else if (AppState.activePane === 'preview') {
+            const selection = window.getSelection();
+            if (selection.rangeCount) {
+                let node = selection.anchorNode;
+                while (node && node !== DOM.preview) {
+                    if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'IMG') {
+                        existingAlt = node.getAttribute('alt') || '';
+                        existingUrl = node.getAttribute('src') || '';
+                        break;
+                    }
+                    node = node.parentNode;
+                }
+            }
+        }
+        
+        DOM.imageAlt.value = existingAlt;
+        DOM.imageUrl.value = existingUrl;
+        DOM.imageModal.classList.add('active');
+        DOM.imageAlt.focus();
+    },
+    
+    closeImageModal() {
+        DOM.imageModal.classList.remove('active');
+        DOM.imageAlt.value = '';
+        DOM.imageUrl.value = '';
+    },
+    
+    submitImage() {
+        const alt = DOM.imageAlt.value.trim();
+        const url = DOM.imageUrl.value.trim();
+        
+        if (!url) {
+            alert('Please enter an image URL');
+            return;
+        }
+        
+        if (AppState.activePane === 'editor') {
+            EditorOps.insertImage(alt, url);
+        } else {
+            // Insert in preview
+            const img = document.createElement('img');
+            img.src = url;
+            img.alt = alt;
+            
+            const selection = window.getSelection();
+            if (selection.rangeCount) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(img);
+            }
+            PreviewOps.syncToEditor();
+        }
+        
+        this.closeImageModal();
+    }
+};
+
+/* @requires-dom — DOM lookups at evaluation time; script is at end of body. */
+// ============================================================================
+// DOM REFERENCES
+// ============================================================================
+const DOM = {
+    editor: document.getElementById('editor'),
+    preview: document.getElementById('preview'),
+    editorContainer: document.getElementById('editorContainer'),
+    previewContainer: document.getElementById('previewContainer'),
+    mainContainer: document.querySelector('.main-container'),
+    editorPane: document.querySelector('.pane:first-child'),
+    previewPane: document.querySelector('.pane:last-child'),
+    
+    // File Menu
+    fileMenu: document.getElementById('fileMenu'),
+    fileMenuBtn: document.getElementById('fileMenuBtn'),
+    menuNew: document.getElementById('menuNew'),
+    menuOpen: document.getElementById('menuOpen'),
+    menuSave: document.getElementById('menuSave'),
+    exportMd: document.getElementById('exportMd'),
+    exportHtml: document.getElementById('exportHtml'),
+    exportTxt: document.getElementById('exportTxt'),
+    fileNameDisplay: document.getElementById('fileNameDisplay'),
+    
+    // Drag and Drop
+    dragOverlay: document.getElementById('dragOverlay'),
+    
+    // View Mode Buttons
+    viewEditorBtn: document.getElementById('viewEditorBtn'),
+    viewBothBtn: document.getElementById('viewBothBtn'),
+    viewPreviewBtn: document.getElementById('viewPreviewBtn'),
+    
+    // Toolbar Buttons
+    boldBtn: document.getElementById('boldBtn'),
+    italicBtn: document.getElementById('italicBtn'),
+    underlineBtn: document.getElementById('underlineBtn'),
+    strikeBtn: document.getElementById('strikeBtn'),
+    h1Btn: document.getElementById('h1Btn'),
+    h2Btn: document.getElementById('h2Btn'),
+    h3Btn: document.getElementById('h3Btn'),
+    h4Btn: document.getElementById('h4Btn'),
+    h5Btn: document.getElementById('h5Btn'),
+    h6Btn: document.getElementById('h6Btn'),
+    bulletBtn: document.getElementById('bulletBtn'),
+    numberBtn: document.getElementById('numberBtn'),
+    quoteIncreaseBtn: document.getElementById('quoteIncreaseBtn'),
+    quoteDecreaseBtn: document.getElementById('quoteDecreaseBtn'),
+    linkBtn: document.getElementById('linkBtn'),
+    imageBtn: document.getElementById('imageBtn'),
+    tableBtn: document.getElementById('tableBtn'),
+    codeBtn: document.getElementById('codeBtn'),
+    codeBlockBtn: document.getElementById('codeBlockBtn'),
+    hrBtn: document.getElementById('hrBtn'),
+    trackBtn: document.getElementById('trackBtn'),
+    
+    // Modals
+    linkModal: document.getElementById('linkModal'),
+    imageModal: document.getElementById('imageModal'),
+    tableModal: document.getElementById('tableModal'),
+    linkText: document.getElementById('linkText'),
+    linkUrl: document.getElementById('linkUrl'),
+    imageAlt: document.getElementById('imageAlt'),
+    imageUrl: document.getElementById('imageUrl'),
+    linkCancel: document.getElementById('linkCancel'),
+    linkSubmit: document.getElementById('linkSubmit'),
+    imageCancel: document.getElementById('imageCancel'),
+    imageSubmit: document.getElementById('imageSubmit'),
+    tableRows: document.getElementById('tableRows'),
+    tableCols: document.getElementById('tableCols'),
+    tablePreview: document.getElementById('tablePreview'),
+    tableCancel: document.getElementById('tableCancel'),
+    tableSubmit: document.getElementById('tableSubmit'),
+    
+    // Status
+    statusLeft: document.getElementById('statusLeft'),
+    statusRight: document.getElementById('statusRight'),
+    unsavedIndicator: document.getElementById('unsavedIndicator'),
+    fileInput: document.getElementById('fileInput')
+};
+
+/* @requires-dom — wires the page and registers DOMContentLoaded. */
+// ============================================================================
+// EVENT HANDLERS
+// ============================================================================
+function setupEventListeners() {
+    // Editor input
+    DOM.editor.addEventListener('input', () => {
+        EditorOps.updatePreview();
+        AppState.setModified(true);
+    });
+    
+    // Editor selection change
+    DOM.editor.addEventListener('keyup', () => IconHighlighter.checkEditorFormats());
+    DOM.editor.addEventListener('click', () => IconHighlighter.checkEditorFormats());
+    DOM.editor.addEventListener('focus', () => {
+        AppState.activePane = 'editor';
+        IconHighlighter.checkEditorFormats();
+    });
+    
+    DOM.preview.addEventListener('click', () => {
+        AppState.activePane = 'editor';
+    });
+    
+    // File Menu
+    DOM.fileMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        DOM.fileMenu.classList.toggle('open');
+    });
+    
+    // Close file menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!DOM.fileMenu.contains(e.target)) {
+            DOM.fileMenu.classList.remove('open');
+        }
+    });
+    
+    // File menu items
+    DOM.menuNew.addEventListener('click', () => {
+        FileOps.newDocument();
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.menuOpen.addEventListener('click', () => {
+        FileOps.openFile();
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.menuSave.addEventListener('click', () => {
+        FileOps.saveFile();
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.exportMd.addEventListener('click', () => {
+        FileOps.exportAs('md');
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.exportHtml.addEventListener('click', () => {
+        FileOps.exportAs('html');
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.exportTxt.addEventListener('click', () => {
+        FileOps.exportAs('txt');
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.fileInput.addEventListener('change', (e) => FileOps.handleFileOpen(e));
+    
+    // Format buttons
+    DOM.boldBtn.addEventListener('click', () => handleFormat('bold'));
+    DOM.italicBtn.addEventListener('click', () => handleFormat('italic'));
+    DOM.underlineBtn.addEventListener('click', () => handleFormat('underline'));
+    DOM.strikeBtn.addEventListener('click', () => handleFormat('strike'));
+    DOM.h1Btn.addEventListener('click', () => handleFormat('h1'));
+    DOM.h2Btn.addEventListener('click', () => handleFormat('h2'));
+    DOM.h3Btn.addEventListener('click', () => handleFormat('h3'));
+    DOM.h4Btn.addEventListener('click', () => handleFormat('h4'));
+    DOM.h5Btn.addEventListener('click', () => handleFormat('h5'));
+    DOM.h6Btn.addEventListener('click', () => handleFormat('h6'));
+    DOM.bulletBtn.addEventListener('click', () => handleFormat('bullet'));
+    DOM.numberBtn.addEventListener('click', () => handleFormat('number'));
+    DOM.quoteIncreaseBtn.addEventListener('click', () => handleFormat('quoteIncrease'));
+    DOM.quoteDecreaseBtn.addEventListener('click', () => handleFormat('quoteDecrease'));
+    DOM.codeBtn.addEventListener('click', () => handleFormat('code'));
+    DOM.codeBlockBtn.addEventListener('click', () => handleFormat('codeBlock'));
+    DOM.hrBtn.addEventListener('click', () => handleFormat('hr'));
+    
+    // Table button
+    DOM.tableBtn.addEventListener('click', () => TableOps.openModal());
+    
+    // View mode buttons
+    DOM.viewEditorBtn.addEventListener('click', () => ViewModeManager.setMode('editor'));
+    DOM.viewBothBtn.addEventListener('click', () => ViewModeManager.setMode('both'));
+    DOM.viewPreviewBtn.addEventListener('click', () => ViewModeManager.setMode('preview'));
+    
+    // Link and image buttons
+    DOM.linkBtn.addEventListener('click', () => ModalOps.openLinkModal());
+    DOM.imageBtn.addEventListener('click', () => ModalOps.openImageModal());
+    
+    // Modal buttons
+    DOM.linkCancel.addEventListener('click', () => ModalOps.closeLinkModal());
+    DOM.linkSubmit.addEventListener('click', () => ModalOps.submitLink());
+    DOM.imageCancel.addEventListener('click', () => ModalOps.closeImageModal());
+    DOM.imageSubmit.addEventListener('click', () => ModalOps.submitImage());
+    DOM.tableCancel.addEventListener('click', () => TableOps.closeModal());
+    DOM.tableSubmit.addEventListener('click', () => TableOps.insert());
+    
+    // Table preview update on input change
+    DOM.tableRows.addEventListener('input', () => TableOps.updatePreview());
+    DOM.tableCols.addEventListener('input', () => TableOps.updatePreview());
+    
+    // Modal overlay click to close
+    DOM.linkModal.addEventListener('click', (e) => {
+        if (e.target === DOM.linkModal) ModalOps.closeLinkModal();
+    });
+    DOM.imageModal.addEventListener('click', (e) => {
+        if (e.target === DOM.imageModal) ModalOps.closeImageModal();
+    });
+    DOM.tableModal.addEventListener('click', (e) => {
+        if (e.target === DOM.tableModal) TableOps.closeModal();
+    });
+    
+    // Modal Enter key
+    DOM.linkUrl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') ModalOps.submitLink();
+    });
+    DOM.imageUrl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') ModalOps.submitImage();
+    });
+    DOM.tableCols.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') TableOps.insert();
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.key.toLowerCase()) {
+                case 'n':
                     e.preventDefault();
-                    e.returnValue = '';
-                }
-            });
-        }
-        
-        /**
-         * Handle format button clicks
-         */
-        function handleFormat(format) {
-            const inlineFormats = ['bold', 'italic', 'underline', 'strike', 'code'];
-            const blockFormats = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'bullet', 'number', 'quoteIncrease', 'quoteDecrease', 'codeBlock', 'hr'];
-            
-            if (AppState.activePane === 'editor') {
-                if (inlineFormats.includes(format)) {
-                    EditorOps.applyInlineFormat(format);
-                } else if (blockFormats.includes(format)) {
-                    EditorOps.applyBlockFormat(format);
-                }
-            } else if (AppState.activePane === 'preview') {
-                PreviewOps.applyFormat(format);
+                    FileOps.newDocument();
+                    break;
+                case 'o':
+                    e.preventDefault();
+                    FileOps.openFile();
+                    break;
+                case 'b':
+                    e.preventDefault();
+                    handleFormat('bold');
+                    break;
+                case 'i':
+                    e.preventDefault();
+                    handleFormat('italic');
+                    break;
+                case 'u':
+                    e.preventDefault();
+                    handleFormat('underline');
+                    break;
+                case 'k':
+                    e.preventDefault();
+                    ModalOps.openLinkModal();
+                    break;
+                case 's':
+                    e.preventDefault();
+                    FileOps.saveFile();
+                    break;
             }
         }
         
-        // ============================================================================
-        // INITIALIZATION
-        // ============================================================================
-        // ============================================================================
-        // BAT FILE LAUNCHER PAYLOAD LOADER
-        // markdown-editor.bat injects window.MD_PAYLOAD into a temp copy of the
-        // HTML before opening it in the browser.
-        // MD_PAYLOAD = { b64: "<base64 utf-8 content>", filename: "<name.md>" }
-        // ============================================================================
-        function loadFromPayload() {
-            if (!window.MD_PAYLOAD) return false;
-
-            try {
-                const { b64, filename } = window.MD_PAYLOAD;
-
-                // Decode base64 → UTF-8 text
-                const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-                const content = new TextDecoder('utf-8').decode(bytes);
-
-                // Populate editor
-                DOM.editor.value = content;
-                EditorOps.updatePreviewNow();
-                AppState.currentFile = filename;
-                AppState.setModified(false);
-                FileOps.updateFileNameDisplay();
-                DOM.statusLeft.textContent = `Opened: ${filename}`;
-                document.title = `Markdown Editor v1.0.40 - ${filename}`;
-
-                Logger.success('App', `Loaded from bat payload: ${filename}`);
-                return true;
-            } catch (err) {
-                Logger.error('App', `Failed to load from bat payload: ${err.message}`);
-                return false;
-            }
+        // Escape to close modals and file menu
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+            e.preventDefault();
+            document.getElementById('consolePanel').classList.toggle('visible');
         }
-
-        function init() {
-            Logger.info('App', 'MARKDOWN EDITOR v1.0.40 - Initializing Application');
-            
-            // Set up event listeners
-            setupEventListeners();
-            
-            // Initialize scroll sync
-            ScrollSyncManager.init(DOM.editor, DOM.previewContainer, DOM.trackBtn);
-            
-            // Initialize drag and drop
-            DragDropHandler.init();
-            
-            // Load file from URL hash if launched via bat/context menu
-            const loadedFromHash = loadFromPayload();
-
-            // Seed undo history with initial content
-            AppState.addToHistory(DOM.editor.value);
-
-            // Initial status update
-            EditorOps.updateStatus();
-
-            // Set focus to editor
-            DOM.editor.focus();
-            AppState.activePane = 'editor';
-            
-            Logger.success('App', 'Application initialized successfully');
+        if (e.key === 'Escape') {
+            ModalOps.closeLinkModal();
+            ModalOps.closeImageModal();
+            TableOps.closeModal();
+            DOM.fileMenu.classList.remove('open');
         }
-        
-        // Start the application
-        document.addEventListener('DOMContentLoaded', init);
+    });
+    
+    // Before unload warning
+    window.addEventListener('beforeunload', (e) => {
+        if (AppState.isModified) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+}
+
+/**
+ * Handle format button clicks
+ */
+function handleFormat(format) {
+    const inlineFormats = ['bold', 'italic', 'underline', 'strike', 'code'];
+    const blockFormats = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'bullet', 'number', 'quoteIncrease', 'quoteDecrease', 'codeBlock', 'hr'];
+    DOM.editor.focus();
+    AppState.activePane = 'editor';
+    if (inlineFormats.includes(format)) {
+        EditorOps.applyInlineFormat(format);
+    } else if (blockFormats.includes(format)) {
+        EditorOps.applyBlockFormat(format);
+    }
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+// ============================================================================
+// BAT FILE LAUNCHER PAYLOAD LOADER
+// markdown-editor.ps1 injects window.MD_PAYLOAD into a temp copy of the
+// HTML before opening it in the browser.
+// MD_PAYLOAD = { b64: "<base64 utf-8 content>", filename: "<name.md>" }
+// ============================================================================
+function loadFromPayload() {
+    if (!window.MD_PAYLOAD) return false;
+
+    try {
+        const { b64, filename } = window.MD_PAYLOAD;
+
+        // Decode base64 → UTF-8 text
+        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        const content = new TextDecoder('utf-8').decode(bytes);
+
+        // Populate editor
+        DOM.editor.value = content;
+        EditorOps.updatePreviewNow();
+        AppState.currentFile = filename;
+        AppState.setModified(false);
+        FileOps.updateFileNameDisplay();
+        DOM.statusLeft.textContent = `Opened: ${filename}`;
+        document.title = `Markdown Editor v${BUILD.version} - ${filename}`;
+
+        Logger.success('App', `Loaded from bat payload: ${filename}`);
+        return true;
+    } catch (err) {
+        Logger.error('App', `Failed to load from bat payload: ${err.message}`);
+        return false;
+    }
+}
+
+function init() {
+    const ver = 'v' + BUILD.version;
+    const verEl = document.querySelector('.header-title .text-sm');
+    if (verEl) verEl.textContent = ver;
+    document.title = 'Markdown Editor ' + ver;
+    Logger.info('App', 'MARKDOWN EDITOR ' + ver + ' - Initializing Application');
+    
+    // Set up event listeners
+    setupEventListeners();
+    
+    // Initialize scroll sync
+    ScrollSyncManager.init(DOM.editor, DOM.previewContainer, DOM.trackBtn);
+    
+    // Initialize drag and drop
+    DragDropHandler.init();
+    
+    // Load file from MD_PAYLOAD if launched via bat/context menu
+    loadFromPayload();
+
+    // Initial status update
+    EditorOps.updateStatus();
+
+    // Set focus to editor
+    DOM.editor.focus();
+    AppState.activePane = 'editor';
+    
+    Logger.success('App', 'Application initialized successfully');
+}
+
+// Start the application
+document.addEventListener('DOMContentLoaded', init);
+
     </script>
 </body>
 </html>

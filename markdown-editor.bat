@@ -1,2 +1,2 @@
 @echo off
-powershell -NoProfile -ExecutionPolicy Bypass -File "D:\Projects\Markdown_Editor\markdown-editor.ps1" %*
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0markdown-editor.ps1" %*

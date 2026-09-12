@@ -1,4 +1,3 @@
 Windows Registry Editor Version 5.00
 
-[-HKEY_CURRENT_USER\Software\Classes\.md]
-[-HKEY_CURRENT_USER\Software\Classes\md_auto_file]
+[-HKEY_CURRENT_USER\Software\Classes\SystemFileAssociations\.md\shell\MarkdownEditor]

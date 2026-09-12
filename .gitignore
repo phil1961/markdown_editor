@@ -1,63 +1,19 @@
-﻿# ===================================================================
-# Charleston Home Finder — .gitignore
-# ===================================================================
+# Generated launch copy -- the .ps1 writes this under %TEMP%, never here.
+md_editor_launch.html
 
-# --- Python ---
-__pycache__/
-*.py[cod]
-*$py.class
-*.pyo
-*.pyd
+# Test/build scratch. markdown-editor.html IS committed (the shipping artifact).
+dist/
+*-shots/
+claude-shots/
 
-# --- Virtual Environment ---
-.venv/
-venv/
-ENV/
+# Leftovers from replacing ACL-locked files on this machine
+*.old
 
-# --- Environment / Secrets ---
-.env
-*.env
-!.env.example
-
-# --- SQLite Database ---
-data/*.db
-data/*.db-journal
-data/*.db-wal
-data/*.db-shm
-
-# --- Logs ---
-logs/
-*.log
-
-# --- IDE / Editor ---
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.project
-.settings/
-
-# --- OS Files ---
+# OS / editor
 Thumbs.db
 Desktop.ini
 .DS_Store
-
-# --- Distribution / Build ---
-dist/
-build/
-*.egg-info/
-*.egg
-
-# --- IIS ---
-logs/python-stdout*.log
-
-# --- My Concerns ---
-	.git/
-
-# --- My Concerns ---
-
-temp/
-_temp/
-data/
-instance/
+.vscode/
+.idea/
+*.swp
+*~
