@@ -221,6 +221,7 @@ const IconHighlighter = {
         else if (bt === "ul") DOM.bulletBtn.classList.add("active");
         else if (bt === "ol") DOM.numberBtn.classList.add("active");
         else if (bt === "quote") DOM.quoteIncreaseBtn.classList.add("active");
+        else if (bt === "hr") DOM.hrBtn.classList.add("active");
     },
 
     markFormatsFrom(node) {
@@ -305,7 +306,7 @@ const IconHighlighter = {
             DOM.boldBtn, DOM.italicBtn, DOM.underlineBtn, DOM.strikeBtn,
             DOM.h1Btn, DOM.h2Btn, DOM.h3Btn, DOM.h4Btn, DOM.h5Btn, DOM.h6Btn,
             DOM.bulletBtn, DOM.numberBtn, DOM.quoteIncreaseBtn,
-            DOM.linkBtn, DOM.imageBtn, DOM.codeBtn
+            DOM.linkBtn, DOM.imageBtn, DOM.codeBtn, DOM.hrBtn
         ];
         
         buttons.forEach(btn => {

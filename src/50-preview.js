@@ -13,6 +13,24 @@ const PreviewOps = {
     },
 
     onMouseDown(e) {
+        const hr = e.target.closest && e.target.closest("#preview hr");
+        if (hr && DOM.preview.contains(hr)) {
+            e.preventDefault();
+            AppState.activePane = "preview";
+            const a = +hr.getAttribute("data-from") || 0;
+            const b = +hr.getAttribute("data-to") || a + 1;
+            Doc.setSelection(a, b);
+            try {
+                const r = document.createRange();
+                r.selectNode(hr);
+                const s = window.getSelection();
+                s.removeAllRanges();
+                s.addRange(r);
+            } catch (err) { /* hr may not accept a range */ }
+            DOM.preview.focus();
+            IconHighlighter.checkPreviewFormats();
+            return;
+        }
         const last = DOM.preview.lastElementChild;
         if (!last) return;
         const below = e.clientY > last.getBoundingClientRect().bottom + 2;
@@ -96,12 +114,8 @@ function applyDocFormat(format) {
     else if (format === "number") Doc.toggleBlock("ol");
     else if (format === "quoteIncrease") Doc.indentQuote();
     else if (format === "quoteDecrease") Doc.outdentQuote();
-    else if (format === "hr") {
-        const md = Doc.toMarkdown();
-        Doc.load(md + (md && !md.endsWith("\n") ? "\n" : "") + "\n---\n");
-        const n = Doc.totalLen();
-        Doc.setSelection(n, n);
-    } else if (format === "codeBlock") {
+    else if (format === "hr") Doc.insertHr();
+    else if (format === "codeBlock") {
         Doc.toggleBlock("pre");
     }
 }

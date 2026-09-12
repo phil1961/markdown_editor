@@ -97,5 +97,7 @@ to type outside it.
 Code-block with no selection inserts an empty fence at the caret.
 Insert Link / Image save the caret, write markdown into the document, and
 return focus to the pane — never into the modal fields.
+A horizontal rule is removed by clicking it and pressing Backspace, or by
+clicking it and pressing the HR button again.
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

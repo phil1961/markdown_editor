@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.0",
+  version:  "1.3.1",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -32,6 +32,8 @@ const BUILD = {
     ["Code-block with no selection did nothing",
      "The button with a collapsed caret inserts an empty fence you can type in."],
     ["Insert Link put the <a> into the URL field of the popup",
-     "The caret is saved when the modal opens. Submit inserts [text](url) into the document and returns focus to the pane."]
+     "The caret is saved when the modal opens. Submit inserts [text](url) into the document and returns focus to the pane."],
+    ["A horizontal rule could be inserted but not removed",
+     "Click the rule and press Backspace, or click it and press the HR button again."]
   ]
 };

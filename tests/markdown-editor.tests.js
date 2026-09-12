@@ -439,6 +439,32 @@ G("Doc model — insert a link as a real <a>");
     ok(/\[hello\]\(https:\/\/example.com\)/.test(Doc.toMarkdown()), "raw markdown is [hello](url)", Doc.toMarkdown());
 }
 
+G("Doc model — horizontal rule inserts and deletes");
+{
+    Doc.load("abc");
+    Doc.setSelection(3, 3);
+    Doc.insertHr();
+    ok(/---/.test(Doc.toMarkdown()), "HR inserts a ---", Doc.toMarkdown());
+    ok(/<hr/.test(Doc.html()), "preview has an <hr>", Doc.html());
+    const types = Doc.get().blocks.map(b => b.type);
+    ok(types.includes("hr"), "there is an hr block", types.join(","));
+    const hr = Doc.get().blocks.findIndex(b => b.type === "hr");
+    const ixFrom = (() => { Doc.previewHTML(); return true; })();
+    Doc.setSelection(4, 5);
+    Doc.insertHr();
+    ok(!Doc.get().blocks.some(b => b.type === "hr"), "HR button on the rule removes it", Doc.get().blocks.map(b => b.type).join(","));
+}
+
+{
+    Doc.load("abc");
+    Doc.setSelection(3, 3);
+    Doc.insertHr();
+    Doc.setSelection(4, 5);
+    Doc.deleteBackward();
+    ok(!Doc.get().blocks.some(b => b.type === "hr"), "Backspace removes the rule", Doc.toMarkdown());
+    ok(/abc/.test(Doc.toMarkdown()), "the text before the rule remains", Doc.toMarkdown());
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

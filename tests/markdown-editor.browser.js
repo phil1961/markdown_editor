@@ -666,6 +666,38 @@ const launchArgs = [
     ok(/\[hello\]\(https:\/\/example.com\)/.test(link.md), "raw pane has [hello](url)", link.md);
     ok(!link.urlField, "the URL field is not left holding the insert", link.urlField);
 
+    G("QC: horizontal rule can be removed");
+    await bootPreview("abc");
+    await evalJs("(() => { Doc.setSelection(3, 3); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#hrBtn");
+    const hrOn = await evalJs("({ n: document.querySelectorAll('#preview hr').length, md: document.getElementById('editor').value, html: document.getElementById('preview').innerHTML })");
+    ok(hrOn.n === 1 && /---/.test(hrOn.md), "HR button inserts a rule", hrOn.html);
+    await evalJs(`(() => {
+      const hr = document.querySelector("#preview hr");
+      hr.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, view: window }));
+    })()`);
+    await frames();
+    await click("#hrBtn");
+    const hrOff = await evalJs("({ n: document.querySelectorAll('#preview hr').length, md: document.getElementById('editor').value, html: document.getElementById('preview').innerHTML })");
+    ok(hrOff.n === 0, "clicking the rule then HR again removes it", hrOff.html);
+
+    await bootPreview("abc");
+    await evalJs("(() => { Doc.setSelection(3, 3); AppState.activePane = 'preview'; Doc.insertHr(); document.getElementById('preview').innerHTML = Doc.previewHTML(); document.getElementById('editor').value = Doc.toMarkdown(); })()");
+    const hrBox2 = await evalJs(`(() => {
+      const hr = document.querySelector("#preview hr");
+      if (!hr) return null;
+      const r = hr.getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`);
+    if (!hrBox2) throw new Error("no hr after insert");
+    await pointerAt(hrBox2.x, hrBox2.y, 1);
+    await frames();
+    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8, nativeVirtualKeyCode: 8 }, S);
+    await frames();
+    const hrBs = await evalJs("({ n: document.querySelectorAll('#preview hr').length, md: document.getElementById('editor').value })");
+    ok(hrBs.n === 0, "Backspace on the selected rule removes it", JSON.stringify(hrBs));
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

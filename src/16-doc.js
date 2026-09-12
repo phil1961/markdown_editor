@@ -60,7 +60,7 @@ const Doc = (() => {
         const blocks = doc.blocks;
         let pos = 0;
         return blocks.map((b, i) => {
-            const text = blockText(b);
+            const text = b.type === "hr" ? "\n" : blockText(b);
             const from = pos;
             const to = pos + text.length;
             pos = to + (i < blocks.length - 1 ? 1 : 0);
@@ -460,7 +460,10 @@ const Doc = (() => {
         switch (b.type) {
             case "h1": case "h2": case "h3": case "h4": case "h5": case "h6":
                 return "<" + b.type + ">" + (body() || caretHole()) + "</" + b.type + ">";
-            case "hr": return "<hr>";
+            case "hr":
+                return mapped
+                    ? "<hr data-from=\"" + from + "\" data-to=\"" + (from + 1) + "\">"
+                    : "<hr>";
             case "pre": {
                 const lang = String(b.lang || "").replace(/[^a-zA-Z0-9_-]/g, "");
                 const body = b.text || "";
@@ -660,6 +663,44 @@ const Doc = (() => {
         convertBlockToPIn(state.blocks, i);
     }
 
+    function insertHr() {
+        const { from } = sel;
+        let c = containerAt(from);
+        if (c.block && c.block.type === "hr") {
+            c.blocks.splice(c.i, 1);
+            ensureTrail();
+            return;
+        }
+        if (c.offset === 0 && c.i > 0 && c.blocks[c.i - 1] && c.blocks[c.i - 1].type === "hr") {
+            c.blocks.splice(c.i - 1, 1);
+            ensureTrail();
+            return;
+        }
+        const hit = blocksOverlapping(from, sel.to);
+        const hrHit = hit.find(b => state.blocks[b.i] && state.blocks[b.i].type === "hr");
+        if (hrHit) {
+            state.blocks.splice(hrHit.i, 1);
+            ensureTrail();
+            return;
+        }
+        if (c.block && c.block.inlines) {
+            const n = inlinesText(c.block.inlines).length;
+            if (n && c.offset > 0 && c.offset < n) splitBlock();
+        }
+        c = containerAt(sel.from);
+        const hr = { type: "hr" };
+        if (!c.block) {
+            state.blocks = [hr];
+        } else if (c.block.inlines && !inlinesText(c.block.inlines)) {
+            c.blocks[c.i] = hr;
+        } else if (c.offset === 0) {
+            c.blocks.splice(c.i, 0, hr);
+        } else {
+            c.blocks.splice(c.i + 1, 0, hr);
+        }
+        ensureTrail();
+    }
+
     function insertEmptyPre() {
         const { from } = sel;
         let c = containerAt(from);
@@ -768,7 +809,7 @@ const Doc = (() => {
     function indexOf(blocks, startPos) {
         let pos = startPos || 0;
         return (blocks || []).map((b, i) => {
-            const text = blockText(b);
+            const text = b.type === "hr" ? "\n" : blockText(b);
             const from = pos;
             const to = pos + text.length;
             pos = to + (i < blocks.length - 1 ? 1 : 0);
@@ -943,6 +984,7 @@ const Doc = (() => {
             const lo = Math.max(0, from - b.from);
             const hi = Math.min(b.text.length, to - b.from);
             const block = state.blocks[b.i];
+            if (block.type === "hr") { state.blocks.splice(b.i, 1); continue; }
             if (block.inlines) block.inlines = spliceInlines(block.inlines, lo, hi, "");
             else if (block.items) block.items = deleteInItems(block.items, lo, hi);
             else if (block.blocks) deleteInQuoted(block, lo, hi);
@@ -1229,6 +1271,18 @@ const Doc = (() => {
         if (from <= 0) return;
         const c = containerAt(from);
         const block = c.block;
+        if (block && block.type === "hr") {
+            c.blocks.splice(c.i, 1);
+            ensureTrail();
+            setSelection(from > 0 ? from - 1 : 0);
+            return;
+        }
+        if (c.offset === 0 && c.i > 0 && c.blocks[c.i - 1] && c.blocks[c.i - 1].type === "hr") {
+            c.blocks.splice(c.i - 1, 1);
+            ensureTrail();
+            setSelection(from > 0 ? from - 1 : 0);
+            return;
+        }
         if (block && block.items) {
             const it = itemAt(block, c.offset);
             if (it.offset === 0 && it.item > 0) {
@@ -1304,8 +1358,29 @@ const Doc = (() => {
     function readPreviewSelection(root) {
         if (typeof window === "undefined") return sel;
         const s = window.getSelection();
-        if (!s.rangeCount || !root.contains(s.anchorNode)) return sel;
+        if (!s.rangeCount) return sel;
         const r = s.getRangeAt(0);
+        const hrFromRange = () => {
+            const nodes = [r.startContainer, r.endContainer];
+            if (r.startContainer.nodeType === 1) {
+                const c = r.startContainer.childNodes[r.startOffset];
+                if (c) nodes.push(c);
+            }
+            for (const n of nodes) {
+                if (!n) continue;
+                if (n.nodeType === 1 && n.tagName === "HR" && root.contains(n)) return n;
+                const el = n.nodeType === 1 ? n : n.parentElement;
+                const hr = el && el.closest && el.closest("hr[data-from]");
+                if (hr && root.contains(hr)) return hr;
+            }
+            return null;
+        };
+        const hr = hrFromRange();
+        if (hr) {
+            setSelection(+hr.getAttribute("data-from"), +hr.getAttribute("data-to") || +hr.getAttribute("data-from") + 1);
+            return sel;
+        }
+        if (!root.contains(s.anchorNode)) return sel;
         let a = domPointToDoc(root, r.startContainer, r.startOffset);
         let b = domPointToDoc(root, r.endContainer, r.endOffset);
         setSelection(a, b);
@@ -1355,7 +1430,7 @@ const Doc = (() => {
         empty, parse, load, get,
         toMarkdown, html, previewHTML,
         selection, setSelection,
-        toggleMark, toggleBlock, indentQuote, outdentQuote,
+        toggleMark, toggleBlock, indentQuote, outdentQuote, insertHr,
         insertText, insertInlineMarkdown, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
         marksAt, blockTypeAt, totalLen: () => totalLen(state),
         ensureTrail, landAtEnd,
