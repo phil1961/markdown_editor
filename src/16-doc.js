@@ -659,22 +659,90 @@ const Doc = (() => {
         });
     }
 
+    function indexOf(blocks, startPos) {
+        let pos = startPos || 0;
+        return (blocks || []).map((b, i) => {
+            const text = blockText(b);
+            const from = pos;
+            const to = pos + text.length;
+            pos = to + (i < blocks.length - 1 ? 1 : 0);
+            return { from, to, text, i, type: b.type };
+        });
+    }
+
+    function overlappingIn(blocks, from, to, startPos) {
+        const ix = indexOf(blocks, startPos);
+        const out = [];
+        for (const b of ix) {
+            if (to < b.from || from > b.to) continue;
+            if (from === to && from === b.from && b.i > 0 && from === ix[b.i - 1].to + 1) continue;
+            out.push(b);
+        }
+        if (!out.length && ix.length) {
+            let pick = ix[0];
+            for (const b of ix) {
+                if (from >= b.from) pick = b;
+            }
+            out.push(pick);
+        }
+        return out;
+    }
+
+    /* Descend into quotes so >+ / >- apply to the selected inner lines,
+       not always the whole outer blockquote. */
+    function quoteTarget() {
+        let blocks = state.blocks;
+        let parentBlocks = null;
+        let parentIndex = -1;
+        let base = 0;
+        const { from, to } = sel;
+        for (;;) {
+            const hit = overlappingIn(blocks, from, to, base);
+            if (hit.length === 1 && blocks[hit[0].i] && blocks[hit[0].i].type === "quote"
+                && (blocks[hit[0].i].blocks || []).length) {
+                parentBlocks = blocks;
+                parentIndex = hit[0].i;
+                base = hit[0].from;
+                blocks = blocks[hit[0].i].blocks;
+                continue;
+            }
+            return { blocks, indices: hit.map(b => b.i), parentBlocks, parentIndex };
+        }
+    }
+
     function indentQuote() {
-        const hit = blocksOverlapping(sel.from, sel.to);
-        if (!hit.length) return;
-        const indices = hit.map(b => b.i).sort((a, b) => a - b);
+        const t = quoteTarget();
+        if (!t.indices.length) return;
+        const indices = t.indices.slice().sort((a, b) => a - b);
         const first = indices[0], last = indices[indices.length - 1];
-        const inner = state.blocks.slice(first, last + 1);
-        state.blocks.splice(first, last - first + 1, { type: "quote", blocks: inner });
+        const inner = t.blocks.slice(first, last + 1);
+        t.blocks.splice(first, last - first + 1, { type: "quote", blocks: inner });
     }
 
     function outdentQuote() {
-        const hit = blocksOverlapping(sel.from, sel.to);
-        if (!hit.length) return;
-        const indices = hit.map(b => b.i).sort((a, b) => b - a);
-        for (const i of indices) {
-            if (state.blocks[i] && state.blocks[i].type === "quote") convertBlockToP(i);
+        const t = quoteTarget();
+        if (!t.indices.length) return;
+        const sorted = t.indices.slice().sort((a, b) => a - b);
+        if (sorted.every(i => t.blocks[i] && t.blocks[i].type === "quote")) {
+            for (let k = sorted.length - 1; k >= 0; k--) {
+                const i = sorted[k];
+                const inner = t.blocks[i].blocks && t.blocks[i].blocks.length
+                    ? t.blocks[i].blocks
+                    : [{ type: "p", inlines: [] }];
+                t.blocks.splice(i, 1, ...inner);
+            }
+            return;
         }
+        if (!t.parentBlocks || t.parentIndex < 0) return;
+        const first = sorted[0], last = sorted[sorted.length - 1];
+        const before = t.blocks.slice(0, first);
+        const lifted = t.blocks.slice(first, last + 1);
+        const after = t.blocks.slice(last + 1);
+        const replacement = [];
+        if (before.length) replacement.push({ type: "quote", blocks: before });
+        replacement.push(...lifted);
+        if (after.length) replacement.push({ type: "quote", blocks: after });
+        t.parentBlocks.splice(t.parentIndex, 1, ...replacement);
     }
 
     function runAt(pos) {

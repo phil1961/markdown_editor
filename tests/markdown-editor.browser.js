@@ -516,6 +516,29 @@ const launchArgs = [
     const qDown = await evalJs("document.querySelectorAll('#preview blockquote').length");
     ok(qDown === 2, ">- removes one indent level", String(qDown));
 
+    G("QC: indent only the middle line inside an existing quote");
+    await loadMd("aaa\n\nbbb\n\nccc");
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#quoteIncreaseBtn");
+    await evalJs("(() => { Doc.setSelection(4, 7); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await click("#quoteIncreaseBtn");
+    const midQuote = await evalJs(`(() => {
+      const outer = document.querySelector('#preview blockquote');
+      const inner = outer && outer.querySelector('blockquote');
+      const innerText = inner ? inner.textContent.trim() : '';
+      const md = document.getElementById('editor').value;
+      return {
+        outers: document.querySelectorAll('#preview > blockquote').length,
+        nest: document.querySelectorAll('#preview blockquote blockquote').length,
+        innerText,
+        md,
+        html: document.getElementById('preview').innerHTML
+      };
+    })()`);
+    ok(midQuote.outers === 1 && midQuote.nest === 1, "one outer quote with one nested quote", midQuote.html);
+    ok(midQuote.innerText === "bbb", "the nested quote is only the middle line", JSON.stringify(midQuote.innerText));
+    ok(midQuote.md.split("\n").includes("> > bbb") && !midQuote.md.split("\n").some(l => /^> > aaa/.test(l)), "raw has >> only on bbb", midQuote.md);
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

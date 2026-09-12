@@ -290,6 +290,30 @@ G("Doc model — quote indent nests, does not toggle off");
     ok(/abc!/.test(Doc.toMarkdown()), "typing still works inside a nested quote", Doc.toMarkdown());
 }
 
+{
+    Doc.load("aaa\n\nbbb\n\nccc");
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.indentQuote();
+    Doc.setSelection(4, 7);
+    Doc.indentQuote();
+    const html = Doc.html();
+    const md = Doc.toMarkdown();
+    ok((html.match(/<blockquote>/g) || []).length === 2, "middle line gets its own nested quote", html);
+    ok(/<blockquote>[\s\S]*aaa[\s\S]*<blockquote>[\s\S]*bbb[\s\S]*<\/blockquote>[\s\S]*ccc/.test(html),
+        "aaa and ccc stay at one level, bbb is nested", html);
+    const qlines = md.split("\n");
+    ok(qlines.includes("> > bbb") && qlines.includes("> aaa") && qlines.includes("> ccc")
+        && !qlines.some(l => /^> > (aaa|ccc)/.test(l)),
+        "raw has >> only on the middle line", md);
+    Doc.setSelection(4, 7);
+    Doc.outdentQuote();
+    const after = Doc.toMarkdown();
+    const alines = after.split("\n");
+    ok(alines.includes("> aaa") && alines.includes("> bbb") && alines.includes("> ccc")
+        && !alines.some(l => /^> >/.test(l)),
+        ">- on the middle line only removes that extra indent", after);
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
