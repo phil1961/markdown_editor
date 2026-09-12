@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.4",
+  version:  "1.2.5",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -19,6 +19,8 @@ const BUILD = {
     ["A second click on quote-increase removed the indent instead of nesting",
      ">+ adds a quote level each time. >- removes one level."],
     ["Could not indent one line further inside an already-quoted block",
-     ">+ / >- now apply to the selected inner lines, not always the whole quote."]
+     ">+ / >- now apply to the selected inner lines, not always the whole quote."],
+    ["Enter at the end of a quote left a blank indented line at the bottom",
+     "Enter at the end of a quote (or on an empty quoted line) leaves the quote."]
   ]
 };

@@ -86,5 +86,7 @@ across lists is how every marker becomes `1.`
 `>+` adds a quote level each click; `>-` removes one. It is not a toggle.
 Inside an existing quote, select a subset of lines and `>+` / `>-` apply to
 those lines only, not the whole block.
+Enter at the end of a quote (or on a blank quoted line) leaves the quote
+instead of adding a blank indented line at the bottom.
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

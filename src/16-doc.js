@@ -121,14 +121,28 @@ const Doc = (() => {
         let i = loc.block;
         let offset = loc.offset;
         let block = blocks[i];
+        let parentBlocks = null;
+        let parentIndex = -1;
         while (block && block.type === "quote" && block.blocks && block.blocks.length) {
+            parentBlocks = blocks;
+            parentIndex = i;
             const inner = innerAt(block.blocks, offset);
             blocks = block.blocks;
             i = inner.i;
             offset = inner.offset;
             block = blocks[i];
         }
-        return { blocks, i, offset, block };
+        return { blocks, i, offset, block, parentBlocks, parentIndex };
+    }
+    function isEmptyBlock(b) {
+        if (!b) return true;
+        if (b.type === "hr") return false;
+        return !blockText(b);
+    }
+    function dropTrailingEmpty(blocks) {
+        const list = blocks || [];
+        while (list.length > 1 && isEmptyBlock(list[list.length - 1])) list.pop();
+        return list;
     }
     function splitInlinesAt(ins, offset) {
         const split = splitInlines(ins, offset);
@@ -265,7 +279,8 @@ const Doc = (() => {
             case "ul": return (b.items || []).map(it => "- " + serInlines(it)).join("\n");
             case "ol": return (b.items || []).map((it, i) => (i + 1) + ". " + serInlines(it)).join("\n");
             case "quote": {
-                const inner = (b.blocks || []).map(serBlock).join("\n\n");
+                const kids = dropTrailingEmpty((b.blocks || []).slice());
+                const inner = kids.map(serBlock).join("\n\n");
                 return inner.split("\n").map(l => l === "" ? ">" : "> " + l).join("\n");
             }
             case "table": {
@@ -714,8 +729,9 @@ const Doc = (() => {
         const t = quoteTarget();
         if (!t.indices.length) return;
         const indices = t.indices.slice().sort((a, b) => a - b);
-        const first = indices[0], last = indices[indices.length - 1];
-        const inner = t.blocks.slice(first, last + 1);
+        let first = indices[0], last = indices[indices.length - 1];
+        while (last > first && isEmptyBlock(t.blocks[last])) last--;
+        const inner = dropTrailingEmpty(t.blocks.slice(first, last + 1));
         t.blocks.splice(first, last - first + 1, { type: "quote", blocks: inner });
     }
 
@@ -1018,10 +1034,48 @@ const Doc = (() => {
             setSelection(from + 1, from + 1);
             return;
         }
+        const empty = !inlinesText(block.inlines);
+        const atEnd = c.offset >= inlinesText(block.inlines).length;
+        const last = c.i === c.blocks.length - 1;
+        if (c.parentBlocks && (empty || (last && atEnd))) {
+            exitQuoteAt(c);
+            return;
+        }
         const { left, right } = splitInlinesAt(block.inlines, c.offset);
         block.inlines = left;
         c.blocks.splice(c.i + 1, 0, { type: "p", inlines: right });
         setSelection(from + 1, from + 1);
+    }
+
+    function blockStart(target) {
+        const walk = (blocks, pos) => {
+            for (let i = 0; i < blocks.length; i++) {
+                if (blocks[i] === target) return pos;
+                if (blocks[i].blocks) {
+                    const hit = walk(blocks[i].blocks, pos);
+                    if (hit >= 0) return hit;
+                }
+                pos += blockText(blocks[i]).length + (i < blocks.length - 1 ? 1 : 0);
+            }
+            return -1;
+        };
+        return walk(state.blocks, 0);
+    }
+
+    function exitQuoteAt(c) {
+        const parent = c.parentBlocks;
+        const qi = c.parentIndex;
+        const quote = parent[qi];
+        const empty = c.block && c.block.inlines && !inlinesText(c.block.inlines);
+        if (empty) quote.blocks.splice(c.i, 1);
+        const para = { type: "p", inlines: [] };
+        if (!(quote.blocks && quote.blocks.length)) {
+            parent.splice(qi, 1, para);
+        } else {
+            parent.splice(qi + 1, 0, para);
+        }
+        const at = blockStart(para);
+        setSelection(at < 0 ? totalLen(state) : at);
     }
 
     function deleteBackward() {

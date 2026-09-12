@@ -344,6 +344,9 @@
             background-color: #eff6ff;
             color: #1e40af;
         }
+        #preview blockquote p { margin: 0.35em 0; }
+        #preview blockquote p:first-child { margin-top: 0; }
+        #preview blockquote p:last-child { margin-bottom: 0; }
         
         #preview blockquote blockquote {
             border-left-color: #8b5cf6;

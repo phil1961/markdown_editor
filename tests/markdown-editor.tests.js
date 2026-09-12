@@ -314,6 +314,32 @@ G("Doc model — quote indent nests, does not toggle off");
         ">- on the middle line only removes that extra indent", after);
 }
 
+{
+    Doc.load("abc");
+    Doc.setSelection(0, 3);
+    Doc.indentQuote();
+    Doc.setSelection(3, 3);
+    Doc.splitBlock();
+    const g = Doc.get();
+    ok(g.blocks[0].type === "quote" && g.blocks[1] && g.blocks[1].type === "p",
+        "Enter at the end of a quote starts an unquoted line after it, not a blank quoted line",
+        JSON.stringify(g.blocks.map(b => b.type)));
+    ok(!(g.blocks[0].blocks || []).some(b => !(b.inlines && b.inlines.length)),
+        "the quote does not keep a trailing empty paragraph", JSON.stringify(g.blocks[0].blocks));
+}
+
+{
+    Doc.load("aaa\n\nbbb");
+    Doc.setSelection(Doc.totalLen(), Doc.totalLen());
+    Doc.splitBlock();
+    Doc.setSelection(0, Doc.totalLen());
+    Doc.indentQuote();
+    const g = Doc.get();
+    const innerEmpty = (g.blocks[0].blocks || []).filter(b => b.type === "p" && !((b.inlines || []).some(r => r.text)));
+    ok(g.blocks[0].type === "quote" && innerEmpty.length === 0,
+        "a trailing blank line is not wrapped into the quote", JSON.stringify(g.blocks));
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

@@ -539,6 +539,30 @@ const launchArgs = [
     ok(midQuote.innerText === "bbb", "the nested quote is only the middle line", JSON.stringify(midQuote.innerText));
     ok(midQuote.md.split("\n").includes("> > bbb") && !midQuote.md.split("\n").some(l => /^> > aaa/.test(l)), "raw has >> only on bbb", midQuote.md);
 
+    G("QC: Enter at the end of a quote leaves the indent");
+    await bootPreview("abc");
+    await evalJs("(() => { Doc.setSelection(0, Doc.totalLen()); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#quoteIncreaseBtn");
+    await evalJs("(() => { const n = Doc.totalLen(); Doc.setSelection(n, n); Doc.restorePreviewSelection(document.getElementById('preview')); })()");
+    await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "char", text: "\r", unmodifiedText: "\r", windowsVirtualKeyCode: 13 }, S);
+    await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 }, S);
+    await frames();
+    const qExit = await evalJs(`(() => {
+      const bq = document.querySelector('#preview blockquote');
+      const emptyInQuote = bq ? [...bq.querySelectorAll('p')].some(p => !p.textContent.trim()) : false;
+      const after = bq && bq.nextElementSibling;
+      return {
+        html: document.getElementById('preview').innerHTML,
+        md: document.getElementById('editor').value,
+        emptyInQuote,
+        afterTag: after ? after.tagName : null,
+        afterEmpty: after ? !after.textContent.trim() : false
+      };
+    })()`);
+    ok(!qExit.emptyInQuote, "the quote does not keep a blank indented line", qExit.html);
+    ok(qExit.afterTag === "P", "Enter after the quoted text starts a paragraph outside the quote", JSON.stringify(qExit));
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);
