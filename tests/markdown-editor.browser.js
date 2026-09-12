@@ -218,6 +218,11 @@ const launchArgs = [
     ok(/^\d+\.\d+/.test(boot.v), "BUILD.version reads " + boot.v);
     ok(boot.editor && boot.preview, "editor and preview exist");
     ok(boot.editable === true, "preview is contenteditable so the right pane accepts typing");
+    const dl = await evalJs("(() => { const a = document.getElementById('downloadAppBtn'); const m = document.getElementById('menuDownloadEditor'); return a ? { href: a.getAttribute('href'), dl: a.getAttribute('download'), text: a.textContent.trim(), menu: m && m.textContent.trim() } : null; })()");
+    ok(dl && dl.href === "markdown-editor.html" && dl.dl === "markdown-editor.html",
+      "header has a Download editor link for the HTML app", JSON.stringify(dl));
+    ok(dl && /Download editor/.test(dl.text), "the header link is labelled Download editor", dl && dl.text);
+    ok(dl && /Download this editor/.test(dl.menu), "File menu has Download this editor", dl && dl.menu);
     ok(errors.length === 0, "no exception during load", errors.join(" | "));
 
     G("Layout");

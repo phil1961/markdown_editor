@@ -17,6 +17,8 @@ const DOM = {
     menuNew: document.getElementById('menuNew'),
     menuOpen: document.getElementById('menuOpen'),
     menuSave: document.getElementById('menuSave'),
+    menuDownloadEditor: document.getElementById('menuDownloadEditor'),
+    downloadAppBtn: document.getElementById('downloadAppBtn'),
     exportMd: document.getElementById('exportMd'),
     exportHtml: document.getElementById('exportHtml'),
     exportTxt: document.getElementById('exportTxt'),

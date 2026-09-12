@@ -45,6 +45,35 @@
             align-items: center;
             gap: 8px;
         }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .download-app-btn {
+            background: rgba(255,255,255,0.18);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: white;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .download-app-btn:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+        .download-app-btn svg {
+            width: 16px;
+            height: 16px;
+        }
         
         /* File Menu */
         .file-menu {
@@ -875,10 +904,29 @@
                             </button>
                         </div>
                     </div>
+                    <div class="file-menu-divider"></div>
+                    <button class="file-menu-item" id="menuDownloadEditor">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download this editor
+                    </button>
                 </div>
             </div>
         </div>
-        <div id="fileNameDisplay" style="font-size: 14px; opacity: 0.9;"></div>
+        <div class="header-right">
+            <a id="downloadAppBtn" class="download-app-btn" href="markdown-editor.html" download="markdown-editor.html" title="Save this editor to your computer. Open the file in any browser — no install, no network.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download editor
+            </a>
+            <div id="fileNameDisplay" style="font-size: 14px; opacity: 0.9;"></div>
+        </div>
     </header>
     
     <!-- Toolbar -->
@@ -1190,9 +1238,9 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.2",
+  version:  "1.3.3",
   released: "12 September 2026",
-  compiled: "121546Z SEP 26",
+  compiled: "121602Z SEP 26",
   corrections: [
     ["Raw and preview were two live copies of the note",
      "A document model is now the source of truth. Both panes are views. "
@@ -1225,7 +1273,9 @@ const BUILD = {
     ["A horizontal rule could be inserted but not removed",
      "Click the rule and press Backspace, or click it and press the HR button again."],
     ["Tables could be inserted but not edited",
-     "With the caret in a table: insert/delete row and insert/delete column."]
+     "With the caret in a table: insert/delete row and insert/delete column."],
+    ["The demo had no way to take the editor home",
+     "Header and File menu offer Download editor: the HTML file, to open locally."]
   ]
 };
 
@@ -3946,6 +3996,33 @@ const FileOps = {
         DOM.statusLeft.textContent = `Downloaded: ${a.download}`;
         Logger.info('File', `Downloaded as ${format.toUpperCase()}: ${a.download}`);
     },
+
+    // Hosted demo only: grab the original file, not the live DOM (which has
+    // whatever the visitor typed). file:// cannot fetch; the href is enough.
+    downloadEditor() {
+        const name = "markdown-editor.html";
+        const clickHref = (href, revoke) => {
+            const a = document.createElement("a");
+            a.href = href;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            if (revoke) setTimeout(() => URL.revokeObjectURL(href), 1500);
+            DOM.statusLeft.textContent = "Downloaded: " + name;
+            Logger.info("File", "Downloaded editor app: " + name);
+        };
+        const pageUrl = location.href.split("#")[0].split("?")[0];
+        if (location.protocol === "http:" || location.protocol === "https:") {
+            fetch(pageUrl, { cache: "no-store" }).then(r => {
+                if (!r.ok) throw new Error(String(r.status));
+                return r.blob();
+            }).then(blob => clickHref(URL.createObjectURL(blob), true))
+              .catch(() => clickHref("markdown-editor.html", false));
+            return;
+        }
+        clickHref("markdown-editor.html", false);
+    },
     
     generateHtmlDocument(bodyContent) {
         return `<!DOCTYPE html>
@@ -4293,6 +4370,8 @@ const DOM = {
     menuNew: document.getElementById('menuNew'),
     menuOpen: document.getElementById('menuOpen'),
     menuSave: document.getElementById('menuSave'),
+    menuDownloadEditor: document.getElementById('menuDownloadEditor'),
+    downloadAppBtn: document.getElementById('downloadAppBtn'),
     exportMd: document.getElementById('exportMd'),
     exportHtml: document.getElementById('exportHtml'),
     exportTxt: document.getElementById('exportTxt'),
@@ -4430,6 +4509,14 @@ function setupEventListeners() {
     DOM.exportTxt.addEventListener('click', () => {
         FileOps.exportAs('txt');
         DOM.fileMenu.classList.remove('open');
+    });
+    DOM.menuDownloadEditor.addEventListener('click', () => {
+        FileOps.downloadEditor();
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.downloadAppBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        FileOps.downloadEditor();
     });
     DOM.fileInput.addEventListener('change', (e) => FileOps.handleFileOpen(e));
     

@@ -101,5 +101,7 @@ A horizontal rule is removed by clicking it and pressing Backspace, or by
 clicking it and pressing the HR button again.
 With the caret in a table cell: insert row above/below, delete row, insert
 column left/right, delete column. Icons are disabled outside a table.
+The demo header **Download editor** (also File → Download this editor) saves
+`markdown-editor.html` so someone can open it from disk with no server.
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

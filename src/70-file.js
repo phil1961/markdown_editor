@@ -126,6 +126,33 @@ const FileOps = {
         DOM.statusLeft.textContent = `Downloaded: ${a.download}`;
         Logger.info('File', `Downloaded as ${format.toUpperCase()}: ${a.download}`);
     },
+
+    // Hosted demo only: grab the original file, not the live DOM (which has
+    // whatever the visitor typed). file:// cannot fetch; the href is enough.
+    downloadEditor() {
+        const name = "markdown-editor.html";
+        const clickHref = (href, revoke) => {
+            const a = document.createElement("a");
+            a.href = href;
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            if (revoke) setTimeout(() => URL.revokeObjectURL(href), 1500);
+            DOM.statusLeft.textContent = "Downloaded: " + name;
+            Logger.info("File", "Downloaded editor app: " + name);
+        };
+        const pageUrl = location.href.split("#")[0].split("?")[0];
+        if (location.protocol === "http:" || location.protocol === "https:") {
+            fetch(pageUrl, { cache: "no-store" }).then(r => {
+                if (!r.ok) throw new Error(String(r.status));
+                return r.blob();
+            }).then(blob => clickHref(URL.createObjectURL(blob), true))
+              .catch(() => clickHref("markdown-editor.html", false));
+            return;
+        }
+        clickHref("markdown-editor.html", false);
+    },
     
     generateHtmlDocument(bodyContent) {
         return `<!DOCTYPE html>

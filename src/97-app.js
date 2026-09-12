@@ -69,6 +69,14 @@ function setupEventListeners() {
         FileOps.exportAs('txt');
         DOM.fileMenu.classList.remove('open');
     });
+    DOM.menuDownloadEditor.addEventListener('click', () => {
+        FileOps.downloadEditor();
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.downloadAppBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        FileOps.downloadEditor();
+    });
     DOM.fileInput.addEventListener('change', (e) => FileOps.handleFileOpen(e));
     
     // Format buttons

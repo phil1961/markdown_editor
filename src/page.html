@@ -93,10 +93,29 @@
                             </button>
                         </div>
                     </div>
+                    <div class="file-menu-divider"></div>
+                    <button class="file-menu-item" id="menuDownloadEditor">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download this editor
+                    </button>
                 </div>
             </div>
         </div>
-        <div id="fileNameDisplay" style="font-size: 14px; opacity: 0.9;"></div>
+        <div class="header-right">
+            <a id="downloadAppBtn" class="download-app-btn" href="markdown-editor.html" download="markdown-editor.html" title="Save this editor to your computer. Open the file in any browser — no install, no network.">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download editor
+            </a>
+            <div id="fileNameDisplay" style="font-size: 14px; opacity: 0.9;"></div>
+        </div>
     </header>
     
     <!-- Toolbar -->
