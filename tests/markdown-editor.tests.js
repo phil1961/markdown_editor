@@ -465,6 +465,27 @@ G("Doc model — horizontal rule inserts and deletes");
     ok(/abc/.test(Doc.toMarkdown()), "the text before the rule remains", Doc.toMarkdown());
 }
 
+G("Doc model — table row and column edits");
+{
+    Doc.load("| A | B |\n| --- | --- |\n| 1 | 2 |\n");
+    Doc.setSelection(0, 1);
+    const ctx = Doc.tableContext();
+    ok(ctx && ctx.row === 0 && ctx.col === 0, "caret in header cell A", JSON.stringify(ctx));
+    Doc.insertRow("below");
+    ok(Doc.get().blocks.find(b => b.type === "table").rows.length === 3, "insert row below adds a row");
+    Doc.setSelection(0, 1);
+    Doc.insertCol("right");
+    ok(Doc.get().blocks.find(b => b.type === "table").rows[0].length === 3, "insert column right adds a column");
+    Doc.setSelection(0, 1);
+    Doc.deleteCol();
+    ok(Doc.get().blocks.find(b => b.type === "table").rows[0].length === 2, "delete column removes it");
+    Doc.setSelection(0, 1);
+    Doc.deleteRow();
+    ok(Doc.get().blocks.find(b => b.type === "table").rows.length === 2, "delete row removes one");
+    const md = Doc.toMarkdown();
+    ok(/\|/.test(md), "table still serializes as pipes", md);
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);

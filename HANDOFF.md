@@ -99,5 +99,7 @@ Insert Link / Image save the caret, write markdown into the document, and
 return focus to the pane — never into the modal fields.
 A horizontal rule is removed by clicking it and pressing Backspace, or by
 clicking it and pressing the HR button again.
+With the caret in a table cell: insert row above/below, delete row, insert
+column left/right, delete column. Icons are disabled outside a table.
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

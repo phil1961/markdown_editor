@@ -50,7 +50,7 @@ const Doc = (() => {
         if (!b) return "";
         if (b.type === "hr") return "";
         if (b.type === "pre") return b.text || "";
-        if (b.type === "table") return (b.rows || []).map(row => row.join(" ")).join("\n");
+        if (b.type === "table") return (b.rows || []).map(row => (row || []).map(c => String(c || "")).join("\t")).join("\n");
         if (b.type === "ul" || b.type === "ol") return (b.items || []).map(inlinesText).join("\n");
         if (b.type === "quote") return (b.blocks || []).map(blockText).join("\n");
         return inlinesText(b.inlines);
@@ -133,6 +133,29 @@ const Doc = (() => {
             block = blocks[i];
         }
         return { blocks, i, offset, block, parentBlocks, parentIndex };
+    }
+    function cellInTable(block, offset) {
+        let o = 0;
+        const rows = block.rows || [];
+        for (let r = 0; r < rows.length; r++) {
+            const row = rows[r] || [];
+            for (let c = 0; c < row.length; c++) {
+                const n = String(row[c] || "").length;
+                if (offset <= o + n) return { r, c, offset: clamp(offset - o, 0, n) };
+                o += n;
+                if (r < rows.length - 1 || c < row.length - 1) o += 1;
+            }
+        }
+        const r = Math.max(0, rows.length - 1);
+        const c = Math.max(0, ((rows[r] || []).length - 1));
+        return { r, c, offset: String((rows[r] || [])[c] || "").length };
+    }
+    function tableContext() {
+        const loc = locAt(state, sel.from);
+        const block = state.blocks[loc.block];
+        if (!block || block.type !== "table") return null;
+        const cell = cellInTable(block, loc.offset);
+        return { block, i: loc.block, row: cell.r, col: cell.c, offset: cell.offset };
     }
     function isEmptyBlock(b) {
         if (!b) return true;
@@ -498,12 +521,23 @@ const Doc = (() => {
             case "table": {
                 const rows = b.rows || [];
                 if (!rows.length) return "";
+                let pos = from;
+                const cell = (tag, text, r, c) => {
+                    const t = String(text || "");
+                    const to = pos + t.length;
+                    const attrs = mapped ? " data-from=\"" + pos + "\" data-to=\"" + to + "\" data-row=\"" + r + "\" data-col=\"" + c + "\"" : "";
+                    const inner = t ? esc(t) : (mapped ? "<br>" : "");
+                    const html = "<" + tag + attrs + ">" + inner + "</" + tag + ">";
+                    const last = r === rows.length - 1 && c === rows[r].length - 1;
+                    pos = last ? to : to + 1;
+                    return html;
+                };
                 let html = "<table><thead><tr>";
-                rows[0].forEach(c => { html += "<th>" + esc(c) + "</th>"; });
+                rows[0].forEach((c, i) => { html += cell("th", c, 0, i); });
                 html += "</tr></thead><tbody>";
                 for (let r = 1; r < rows.length; r++) {
                     html += "<tr>";
-                    rows[r].forEach(c => { html += "<td>" + esc(c) + "</td>"; });
+                    rows[r].forEach((c, i) => { html += cell("td", c, r, i); });
                     html += "</tr>";
                 }
                 return html + "</tbody></table>";
@@ -728,6 +762,33 @@ const Doc = (() => {
         const at = blockStart(pre);
         setSelection(at < 0 ? 0 : at);
     }
+
+    function insertRow(where) {
+        const t = tableContext();
+        if (!t) return;
+        const cols = (t.block.rows[0] || []).length;
+        const empty = [];
+        for (let i = 0; i < cols; i++) empty.push("");
+        const at = where === "above" ? t.row : t.row + 1;
+        t.block.rows.splice(at, 0, empty);
+    }
+    function deleteRow() {
+        const t = tableContext();
+        if (!t || t.block.rows.length <= 1) return;
+        t.block.rows.splice(t.row, 1);
+    }
+    function insertCol(where) {
+        const t = tableContext();
+        if (!t) return;
+        const at = where === "left" ? t.col : t.col + 1;
+        t.block.rows.forEach(row => row.splice(at, 0, ""));
+    }
+    function deleteCol() {
+        const t = tableContext();
+        if (!t || !(t.block.rows[0] || []).length || t.block.rows[0].length <= 1) return;
+        t.block.rows.forEach(row => { if (row.length > t.col) row.splice(t.col, 1); });
+    }
+
     function itemsFromBlock(block) {
         if (!block) return [[]];
         if (block.items) return block.items.slice();
@@ -985,6 +1046,13 @@ const Doc = (() => {
             const hi = Math.min(b.text.length, to - b.from);
             const block = state.blocks[b.i];
             if (block.type === "hr") { state.blocks.splice(b.i, 1); continue; }
+            if (block.type === "table") {
+                const cell = cellInTable(block, lo);
+                const cur = String(block.rows[cell.r][cell.c] || "");
+                const localHi = Math.min(cur.length, cell.offset + Math.max(0, hi - lo));
+                block.rows[cell.r][cell.c] = cur.slice(0, cell.offset) + cur.slice(localHi);
+                continue;
+            }
             if (block.inlines) block.inlines = spliceInlines(block.inlines, lo, hi, "");
             else if (block.items) block.items = deleteInItems(block.items, lo, hi);
             else if (block.blocks) deleteInQuoted(block, lo, hi);
@@ -1050,6 +1118,13 @@ const Doc = (() => {
 
     function insertAt(block, offset, text, marks) {
         if (!block) return;
+        if (block.type === "table") {
+            const cell = cellInTable(block, offset);
+            const cur = String(block.rows[cell.r][cell.c] || "");
+            const t = String(text || "").replace(/\n/g, " ");
+            block.rows[cell.r][cell.c] = cur.slice(0, cell.offset) + t + cur.slice(cell.offset);
+            return;
+        }
         if (block.type === "quote" && block.blocks) {
             const inner = innerAt(block.blocks, offset);
             insertAt(inner.block, inner.offset, text, marks);
@@ -1075,6 +1150,12 @@ const Doc = (() => {
         const c0 = containerAt(from);
         if (c0.block && c0.block.type === "pre") {
             const t = String(text || "");
+            insertAt(c0.block, c0.offset, t, []);
+            setSelection(from + t.length, from + t.length);
+            return;
+        }
+        if (c0.block && c0.block.type === "table") {
+            const t = String(text || "").replace(/\n/g, " ");
             insertAt(c0.block, c0.offset, t, []);
             setSelection(from + t.length, from + t.length);
             return;
@@ -1186,6 +1267,10 @@ const Doc = (() => {
             const o = clamp(c.offset, 0, t.length);
             block.text = t.slice(0, o) + "\n" + t.slice(o);
             setSelection(from + 1, from + 1);
+            return;
+        }
+        if (block.type === "table") {
+            insertRow("below");
             return;
         }
         if (block.items) {
@@ -1431,6 +1516,7 @@ const Doc = (() => {
         toMarkdown, html, previewHTML,
         selection, setSelection,
         toggleMark, toggleBlock, indentQuote, outdentQuote, insertHr,
+        insertRow, deleteRow, insertCol, deleteCol, tableContext,
         insertText, insertInlineMarkdown, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
         marksAt, blockTypeAt, totalLen: () => totalLen(state),
         ensureTrail, landAtEnd,

@@ -4,6 +4,7 @@
 // ============================================================================
 const TableOps = {
     openModal() {
+        ModalOps.saveCaret();
         this.updatePreview();
         DOM.tableModal.classList.add('active');
         DOM.tableRows.focus();
@@ -70,30 +71,43 @@ const TableOps = {
         const rows = parseInt(DOM.tableRows.value) || 3;
         const cols = parseInt(DOM.tableCols.value) || 3;
         
-        const tableMd = this.generateMarkdown(rows, cols);
-        
-        const editor = DOM.editor;
-        const start = editor.selectionStart;
-        const content = editor.value;
-        
-        // Add newlines before and after if needed
-        let prefix = '';
-        let suffix = '\n';
-        
-        if (start > 0 && content[start - 1] !== '\n') {
-            prefix = '\n\n';
-        } else if (start > 1 && content[start - 2] !== '\n') {
-            prefix = '\n';
-        }
-        
-        const insertText = prefix + tableMd + suffix;
-        EditorOps.replaceSpan(start, editor.selectionEnd, insertText);
-        
-        EditorOps.updatePreviewNow();
-        AppState.setModified(true);
+        const tableMd = this.generateMarkdown(rows, cols).trim();
         this.closeModal();
-        
-        Logger.info('Table', `Inserted ${rows}x${cols} table`);
+        const s = ModalOps._saved;
+        if (s && s.pane === "preview") {
+            AppState.activePane = "preview";
+            Doc.setSelection(s.from, s.to);
+            Doc.paste(tableMd);
+            syncFromDoc("preview");
+            DOM.preview.focus();
+        } else {
+            const editor = DOM.editor;
+            const start = s && s.editorStart != null ? s.editorStart : editor.selectionStart;
+            const end = s && s.editorEnd != null ? s.editorEnd : editor.selectionEnd;
+            const content = editor.value;
+            let prefix = "";
+            let suffix = "\n";
+            if (start > 0 && content[start - 1] !== "\n") prefix = "\n\n";
+            else if (start > 1 && content[start - 2] !== "\n") prefix = "\n";
+            EditorOps.replaceSpan(start, end, prefix + tableMd + suffix);
+            EditorOps.updatePreviewNow();
+            AppState.setModified(true);
+            DOM.editor.focus();
+        }
+        Logger.info("Table", "Inserted " + rows + "x" + cols + " table");
+    },
+
+    apply(op) {
+        if (AppState.activePane === "preview") Doc.readPreviewSelection(DOM.preview);
+        if (op === "rowAbove") Doc.insertRow("above");
+        else if (op === "rowBelow") Doc.insertRow("below");
+        else if (op === "rowDel") Doc.deleteRow();
+        else if (op === "colLeft") Doc.insertCol("left");
+        else if (op === "colRight") Doc.insertCol("right");
+        else if (op === "colDel") Doc.deleteCol();
+        const focus = AppState.activePane === "preview" ? "preview" : "editor";
+        syncFromDoc(focus);
+        if (focus === "editor") DOM.editor.focus();
     }
 };
 

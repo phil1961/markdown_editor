@@ -240,6 +240,19 @@
             padding: 0 10px;
             font-size: 12px;
         }
+
+        .toolbar-btn:disabled {
+            opacity: 0.35;
+            cursor: default;
+        }
+        .toolbar-btn:disabled:hover {
+            background: transparent;
+            border-color: transparent;
+        }
+
+        #preview th, #preview td {
+            cursor: text;
+        }
         
         .toolbar-separator {
             width: 1px;

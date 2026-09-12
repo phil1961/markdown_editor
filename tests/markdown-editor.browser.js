@@ -698,6 +698,23 @@ const launchArgs = [
     const hrBs = await evalJs("({ n: document.querySelectorAll('#preview hr').length, md: document.getElementById('editor').value })");
     ok(hrBs.n === 0, "Backspace on the selected rule removes it", JSON.stringify(hrBs));
 
+    G("QC: table row and column icons");
+    await loadMd("| A | B |\n| --- | --- |\n| 1 | 2 |\n");
+    await evalJs("(() => { Doc.setSelection(0, 1); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; IconHighlighter.checkPreviewFormats(); })()");
+    const tblOn = await evalJs("!document.getElementById('tableRowBelowBtn').disabled");
+    ok(tblOn, "row/column buttons enable when the caret is in a table");
+    await click("#tableRowBelowBtn");
+    const rows = await evalJs("document.querySelectorAll('#preview tr').length");
+    ok(rows === 3, "insert row below adds a row", String(rows));
+    await evalJs("(() => { Doc.setSelection(0, 1); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#tableColRightBtn");
+    const cols = await evalJs("document.querySelectorAll('#preview thead th').length");
+    ok(cols === 3, "insert column right adds a column", String(cols));
+    await evalJs("(() => { Doc.setSelection(0, 1); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#tableColDelBtn");
+    const cols2 = await evalJs("document.querySelectorAll('#preview thead th').length");
+    ok(cols2 === 2, "delete column removes it", String(cols2));
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

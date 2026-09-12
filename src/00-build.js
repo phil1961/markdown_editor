@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.1",
+  version:  "1.3.2",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -34,6 +34,8 @@ const BUILD = {
     ["Insert Link put the <a> into the URL field of the popup",
      "The caret is saved when the modal opens. Submit inserts [text](url) into the document and returns focus to the pane."],
     ["A horizontal rule could be inserted but not removed",
-     "Click the rule and press Backspace, or click it and press the HR button again."]
+     "Click the rule and press Backspace, or click it and press the HR button again."],
+    ["Tables could be inserted but not edited",
+     "With the caret in a table: insert/delete row and insert/delete column."]
   ]
 };

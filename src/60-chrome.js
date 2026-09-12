@@ -222,6 +222,7 @@ const IconHighlighter = {
         else if (bt === "ol") DOM.numberBtn.classList.add("active");
         else if (bt === "quote") DOM.quoteIncreaseBtn.classList.add("active");
         else if (bt === "hr") DOM.hrBtn.classList.add("active");
+        this.setTableEditEnabled(bt === "table");
     },
 
     markFormatsFrom(node) {
@@ -312,5 +313,13 @@ const IconHighlighter = {
         buttons.forEach(btn => {
             if (btn) btn.classList.remove('active');
         });
+        this.setTableEditEnabled(Doc.blockTypeAt() === "table");
+    },
+
+    setTableEditEnabled(on) {
+        [
+            DOM.tableRowAboveBtn, DOM.tableRowBelowBtn, DOM.tableRowDelBtn,
+            DOM.tableColLeftBtn, DOM.tableColRightBtn, DOM.tableColDelBtn
+        ].forEach(btn => { if (btn) btn.disabled = !on; });
     }
 };

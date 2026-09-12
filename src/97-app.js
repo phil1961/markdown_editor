@@ -92,6 +92,12 @@ function setupEventListeners() {
     
     // Table button
     DOM.tableBtn.addEventListener('click', () => TableOps.openModal());
+    DOM.tableRowAboveBtn.addEventListener('click', () => TableOps.apply('rowAbove'));
+    DOM.tableRowBelowBtn.addEventListener('click', () => TableOps.apply('rowBelow'));
+    DOM.tableRowDelBtn.addEventListener('click', () => TableOps.apply('rowDel'));
+    DOM.tableColLeftBtn.addEventListener('click', () => TableOps.apply('colLeft'));
+    DOM.tableColRightBtn.addEventListener('click', () => TableOps.apply('colRight'));
+    DOM.tableColDelBtn.addEventListener('click', () => TableOps.apply('colDel'));
     
     // View mode buttons
     DOM.viewEditorBtn.addEventListener('click', () => ViewModeManager.setMode('editor'));
