@@ -94,5 +94,6 @@ Numbering or bullets inside a quote apply per inner line, not one item
 flattening `a b c`.
 Enter in a code block inserts a newline in the fence. Click below the box
 to type outside it.
+Code-block with no selection inserts an empty fence at the caret.
 
 Windows Explorer launch (`.ps1` / `.bat` / `.reg`) is later work.

@@ -626,6 +626,26 @@ const launchArgs = [
     ok(/```[\s\S]*hello\nworld/.test(code.md) && !/^world/m.test(code.md.replace(/```[\s\S]*?```/, "")),
       "raw fence contains hello and world", code.md);
 
+    G("QC: code-block with no selection inserts an empty fence");
+    await bootPreview("");
+    await click("#preview");
+    await evalJs("(() => { Doc.setSelection(0, 0); Doc.restorePreviewSelection(document.getElementById('preview')); AppState.activePane = 'preview'; })()");
+    await click("#codeBlockBtn");
+    const emptyFence = await evalJs(`({
+      html: document.getElementById("preview").innerHTML,
+      md: document.getElementById("editor").value,
+      pre: !!document.querySelector("#preview pre")
+    })`);
+    ok(emptyFence.pre, "code-block button with no selection creates a <pre>", emptyFence.html);
+    await cdp.send("Input.insertText", { text: "solo" }, S);
+    await frames();
+    const fenceTyped = await evalJs(`({
+      preText: (document.querySelector("#preview pre") || {}).textContent || "",
+      md: document.getElementById("editor").value
+    })`);
+    ok(/solo/.test(fenceTyped.preText) && /```[\s\S]*solo/.test(fenceTyped.md),
+      "typing goes into the empty fence", JSON.stringify(fenceTyped));
+
     ok(errors.length === 0, "no exception during the whole run", errors.join(" | "));
   } catch (e) {
     fail++; console.log("  FAIL  the run threw: " + e.message);

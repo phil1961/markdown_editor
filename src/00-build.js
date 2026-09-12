@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.2.8",
+  version:  "1.2.9",
   released: "12 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -28,6 +28,8 @@ const BUILD = {
     ["Numbering indented lines collapsed them to '1. a b c'",
      "Lists apply to the selected lines inside a quote, one item per line."],
     ["Enter in a code block created a paragraph outside the fence",
-     "Enter inserts a newline inside the code. Click below the box to leave it."]
+     "Enter inserts a newline inside the code. Click below the box to leave it."],
+    ["Code-block with no selection did nothing",
+     "The button with a collapsed caret inserts an empty fence you can type in."]
   ]
 };

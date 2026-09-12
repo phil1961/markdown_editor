@@ -659,6 +659,34 @@ const Doc = (() => {
     function convertBlockToP(i) {
         convertBlockToPIn(state.blocks, i);
     }
+
+    function insertEmptyPre() {
+        const { from } = sel;
+        let c = containerAt(from);
+        if (c.block && c.block.type === "pre") {
+            convertBlockToPIn(c.blocks, c.i);
+            ensureTrail();
+            return;
+        }
+        if (c.block && c.block.inlines) {
+            const n = inlinesText(c.block.inlines).length;
+            if (n && c.offset > 0 && c.offset < n) splitBlock();
+        }
+        c = containerAt(sel.from);
+        const pre = { type: "pre", lang: "", text: "" };
+        if (!c.block) {
+            state.blocks = [pre];
+        } else if (c.block.inlines && !inlinesText(c.block.inlines)) {
+            c.blocks[c.i] = pre;
+        } else if (c.offset === 0) {
+            c.blocks.splice(c.i, 0, pre);
+        } else {
+            c.blocks.splice(c.i + 1, 0, pre);
+        }
+        ensureTrail();
+        const at = blockStart(pre);
+        setSelection(at < 0 ? 0 : at);
+    }
     function itemsFromBlock(block) {
         if (!block) return [[]];
         if (block.items) return block.items.slice();
@@ -702,8 +730,15 @@ const Doc = (() => {
         }
 
         if (type === "pre") {
+            if (from === to) {
+                insertEmptyPre();
+                return;
+            }
             const t = quoteTarget();
-            if (!t.indices.length) return;
+            if (!t.indices.length) {
+                insertEmptyPre();
+                return;
+            }
             const idx = t.indices.slice().sort((a, b) => a - b);
             if (idx.every(i => t.blocks[i].type === "pre")) {
                 for (let k = idx.length - 1; k >= 0; k--) convertBlockToPIn(t.blocks, idx[k]);

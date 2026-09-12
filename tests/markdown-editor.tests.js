@@ -407,6 +407,28 @@ G("Doc model — Enter stays inside a code block");
         "several paragraphs become one fence with newlines", JSON.stringify(Doc.get().blocks[0]));
 }
 
+{
+    Doc.load("");
+    Doc.setSelection(0, 0);
+    Doc.toggleBlock("pre");
+    ok(Doc.get().blocks[0].type === "pre" && Doc.get().blocks[0].text === "",
+        "code-block with no selection inserts an empty fence", JSON.stringify(Doc.get().blocks[0]));
+    Doc.insertText("x");
+    ok(Doc.get().blocks[0].type === "pre" && Doc.get().blocks[0].text === "x",
+        "typing goes into that empty fence", Doc.get().blocks[0].text);
+}
+
+{
+    Doc.load("hello");
+    Doc.setSelection(5, 5);
+    Doc.toggleBlock("pre");
+    const types = Doc.get().blocks.map(b => b.type);
+    ok(types[0] === "p" && types.includes("pre"),
+        "caret at the end of a paragraph inserts a fence after it", types.join(","));
+    const pre = Doc.get().blocks.find(b => b.type === "pre");
+    ok(pre && pre.text === "", "the inserted fence is empty");
+}
+
 console.log("\n----------------------------------------------------------");
 console.log(pass + " passed, " + fail + " failed");
 process.exit(fail ? 1 : 0);
