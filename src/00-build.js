@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.5",
+  version:  "1.3.6",
   released: "13 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -44,6 +44,11 @@ const BUILD = {
      + "The file loads in the editor. Launch copies go under %TEMP%."],
     ["The two panes were always the same width",
      "Drag the bar between them to resize. Double-click resets to half. "
-     + "The split is remembered in this browser."]
+     + "The split is remembered in this browser."],
+    ["Undo only worked in the raw pane, and only for typing",
+     "One undo stack for both panes. Ctrl+Z / Ctrl+Y (or the toolbar arrows) "
+     + "step through typing, formatting, inserts, and table edits. The Undo/Redo "
+     + "tooltips name the step. Ctrl+Shift+H opens a History panel that lists "
+     + "every snapshot with what changed; click a row to jump to it."]
   ]
 };

@@ -781,6 +781,121 @@ const launchArgs = [
     ok(hidden === "none", "the bar is hidden in Editor-only view");
     await click("#viewBothBtn");
 
+    G("QC: undo/redo is one stack for both panes, with labels");
+    const ctrlKey = async (key, code, vk, shift) => {
+      const mods = 2 | (shift ? 8 : 0);
+      await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key, code, windowsVirtualKeyCode: vk, modifiers: mods }, S);
+      await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode: vk, modifiers: mods }, S);
+      await frames();
+    };
+    const settle = () => evalJs("new Promise(r => setTimeout(r, 450))");
+    const hist = () => evalJs(`({
+      n: History.stack.length, i: History.index,
+      labels: History.stack.map(e => e.label),
+      md: document.getElementById("editor").value,
+      undoOff: document.getElementById("undoBtn").disabled,
+      redoOff: document.getElementById("redoBtn").disabled,
+      undoTitle: document.getElementById("undoBtn").title,
+      redoTitle: document.getElementById("redoBtn").title,
+      pane: AppState.activePane
+    })`);
+    await click("#viewBothBtn");
+    await evalJs("(() => { History.togglePanel(false); Doc.load(''); document.getElementById('editor').value = ''; document.getElementById('preview').innerHTML = Doc.previewHTML(); History.reset('Test start'); })()");
+    let h = await hist();
+    ok(h.n === 1 && h.i === 0 && h.undoOff && h.redoOff, "fresh stack: one entry, both buttons disabled", JSON.stringify(h));
+    ok(/Nothing to undo/.test(h.undoTitle), "undo tooltip says there is nothing to undo", h.undoTitle);
+
+    await click("#editor");
+    await cdp.send("Input.insertText", { text: "hello" }, S);
+    await settle();
+    h = await hist();
+    ok(h.n === 2 && h.labels[1] === "Typing" && h.md === "hello", "typing in the raw pane records one coalesced Typing entry", JSON.stringify(h));
+    ok(!h.undoOff && h.redoOff, "undo enabled, redo disabled after an edit");
+    ok(h.undoTitle === "Undo: Typing (Ctrl+Z)", "undo tooltip names the step", h.undoTitle);
+
+    await ctrlKey("z", "KeyZ", 90, false);
+    h = await hist();
+    ok(h.md === "" && h.i === 0, "Ctrl+Z restores the empty document", JSON.stringify(h));
+    ok(!h.redoOff && h.redoTitle === "Redo: Typing (Ctrl+Y)", "redo enabled and its tooltip names the step", h.redoTitle);
+    const previewAfterUndo = await evalJs("document.getElementById('preview').innerText.trim()");
+    ok(previewAfterUndo === "", "the preview pane follows the undo", JSON.stringify(previewAfterUndo));
+
+    await ctrlKey("y", "KeyY", 89, false);
+    h = await hist();
+    ok(h.md === "hello" && h.i === 1, "Ctrl+Y redoes the typing", JSON.stringify(h));
+
+    await evalJs("(() => { const ed = document.getElementById('editor'); ed.focus(); ed.setSelectionRange(0, 5); AppState.activePane = 'editor'; })()");
+    await click("#boldBtn");
+    h = await hist();
+    ok(h.n === 3 && h.labels[2] === "Bold" && h.md === "**hello**", "toolbar Bold in the raw pane is its own labelled entry", JSON.stringify(h));
+    await click("#undoBtn");
+    h = await hist();
+    ok(h.md === "hello" && h.i === 1, "the Undo button reverts Bold", JSON.stringify(h));
+    await click("#redoBtn");
+    h = await hist();
+    ok(h.md === "**hello**" && h.i === 2, "the Redo button re-applies Bold", JSON.stringify(h));
+
+    await ctrlKey("z", "KeyZ", 90, false);
+    await click("#editor");
+    await evalJs("(() => { const ed = document.getElementById('editor'); ed.setSelectionRange(5, 5); })()");
+    await cdp.send("Input.insertText", { text: "!" }, S);
+    await settle();
+    h = await hist();
+    ok(h.n === 3 && h.labels[2] === "Typing" && h.md === "hello!" && h.redoOff, "a new edit after undo discards the redo branch", JSON.stringify(h));
+
+    await bootPreview("alpha");
+    await settle();
+    h = await hist();
+    ok(h.labels[h.n - 1] === "Typing" && h.md === "alpha", "typing in the preview pane records a Typing entry", JSON.stringify(h));
+    await dblclickWord("alpha");
+    await click("#italicBtn");
+    h = await hist();
+    ok(h.labels[h.n - 1] === "Italic" && /\*alpha\*/.test(h.md), "Italic in the preview is labelled Italic", JSON.stringify(h));
+    await ctrlKey("z", "KeyZ", 90, false);
+    const pv = await evalJs("({ em: !!document.querySelector('#preview em'), md: document.getElementById('editor').value, pane: AppState.activePane })");
+    ok(!pv.em && pv.md === "alpha" && pv.pane === "preview", "Ctrl+Z from the preview removes the italic in both panes and keeps the preview active", JSON.stringify(pv));
+    await ctrlKey("z", "KeyZ", 90, true);
+    const pv2 = await evalJs("({ em: !!document.querySelector('#preview em'), md: document.getElementById('editor').value })");
+    ok(pv2.em && /\*alpha\*/.test(pv2.md), "Ctrl+Shift+Z redoes it", JSON.stringify(pv2));
+
+    G("QC: the History panel shows the undo/redo data");
+    await ctrlKey("h", "KeyH", 72, true);
+    let panel = await evalJs(`({
+      open: document.getElementById("historyPanel").classList.contains("visible"),
+      btn: document.getElementById("historyBtn").classList.contains("active"),
+      rows: document.querySelectorAll("#historyList .hist-entry").length,
+      n: History.stack.length,
+      current: (document.querySelector("#historyList .hist-entry.current") || {}).getAttribute ? +document.querySelector("#historyList .hist-entry.current").getAttribute("data-index") : -1,
+      i: History.index,
+      summary: document.getElementById("historySummary").textContent,
+      labels: [...document.querySelectorAll("#historyList .hist-label")].map(el => el.textContent),
+      adds: [...document.querySelectorAll("#historyList .hist-add")].map(el => el.textContent),
+      dels: [...document.querySelectorAll("#historyList .hist-del")].map(el => el.textContent),
+      first: (document.querySelector("#historyList .hist-entry") || {}).getAttribute ? +document.querySelector("#historyList .hist-entry").getAttribute("data-index") : -1
+    })`);
+    ok(panel.open && panel.btn, "Ctrl+Shift+H opens the panel and lights the button", JSON.stringify(panel));
+    ok(panel.rows === panel.n, "one row per snapshot (" + panel.rows + ")", JSON.stringify(panel));
+    ok(panel.current === panel.i, "the current snapshot is highlighted", JSON.stringify(panel));
+    ok(panel.first === panel.n - 1, "newest snapshot is listed first");
+    ok(/to undo/.test(panel.summary) && /to redo/.test(panel.summary), "the header summarises undo/redo counts", panel.summary);
+    ok(panel.labels[0] === "Italic", "the top row is labelled Italic", JSON.stringify(panel.labels));
+    ok(panel.adds.some(t => /\*/.test(t)) && panel.dels.length >= 1, "rows show the removed and added text of each step", JSON.stringify({ adds: panel.adds, dels: panel.dels }));
+    await shot("06-history-panel", "History panel listing every undo step.");
+
+    const target = await evalJs("History.stack.findIndex(e => e.md === 'hello!')");
+    ok(target >= 0, "an older snapshot (hello!) exists to jump to");
+    await evalJs("(() => { const row = document.querySelector('#historyList .hist-entry[data-index=\"" + target + "\"]'); row.dispatchEvent(new MouseEvent('click', { bubbles: true })); })()");
+    panel = await evalJs(`({
+      i: History.index, md: document.getElementById("editor").value,
+      current: +document.querySelector("#historyList .hist-entry.current").getAttribute("data-index"),
+      redoRows: document.querySelectorAll("#historyList .hist-entry.redo").length
+    })`);
+    ok(panel.i === target && panel.md === "hello!", "clicking a row jumps the document to that snapshot", JSON.stringify(panel));
+    ok(panel.current === target && panel.redoRows > 0, "the panel re-highlights and marks later rows as redo", JSON.stringify(panel));
+    await click("#historyClose");
+    const panelClosed = await evalJs("document.getElementById('historyPanel').classList.contains('visible')");
+    ok(!panelClosed, "the close button hides the panel");
+
     G("QC: Explorer launcher payload loads the file");
     const launched = await evalJs("(() => { const bytes = new TextEncoder().encode('# From Explorer\\n\\nhello from the launcher\\n'); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); window.MD_PAYLOAD = { b64: btoa(bin), filename: 'md-editor-launch-fixture.md' }; const okp = loadFromPayload(); return { okp, raw: document.getElementById('editor').value, h: (document.querySelector('#preview h1')||{}).textContent, name: document.getElementById('fileNameDisplay').textContent }; })()");
     ok(launched.okp === true, "loadFromPayload returns true");

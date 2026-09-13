@@ -16,7 +16,7 @@ const ModalOps = {
         };
     },
 
-    insertAtSaved(md) {
+    insertAtSaved(md, label) {
         const s = this._saved || { pane: AppState.activePane, from: Doc.selection().from, to: Doc.selection().to };
         if (s.pane === "editor") {
             AppState.activePane = "editor";
@@ -35,6 +35,7 @@ const ModalOps = {
             syncFromDoc("preview");
             DOM.preview.focus();
         }
+        History.commit(label || "Insert");
     },
 
     openLinkModal() {
@@ -112,7 +113,7 @@ const ModalOps = {
         }
         
         this.closeLinkModal();
-        this.insertAtSaved("[" + text + "](" + url + ")");
+        this.insertAtSaved("[" + text + "](" + url + ")", "Insert link");
     },
     
     openImageModal() {
@@ -180,6 +181,6 @@ const ModalOps = {
         }
         
         this.closeImageModal();
-        this.insertAtSaved("![" + alt + "](" + url + ")");
+        this.insertAtSaved("![" + alt + "](" + url + ")", "Insert image");
     }
 };

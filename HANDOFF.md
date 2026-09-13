@@ -104,6 +104,20 @@ column left/right, delete column. Icons are disabled outside a table.
 The demo header **Download editor** (also File → Download this editor) saves
 `markdown-editor.html` so someone can open it from disk with no server.
 
+Undo/redo (`src/35-history.js`): one stack for both panes, snapshots are the
+markdown plus the caret. Every mutation path records a labelled entry:
+`History.schedule(label)` for typing (coalesces on 350 ms idle) and
+`History.commit(label)` for discrete steps (toolbar formats via `handleFormat`,
+Enter, paste, link/image/table inserts, table row/column edits). Opening or
+creating a file calls `History.reset(label)`. Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y and
+the toolbar arrows drive it; the textarea's native undo is bypassed. The
+Undo/Redo tooltips name the next step. Ctrl+Shift+H (or the clock button) opens
+the History panel: every snapshot newest first with its label, pane, size
+delta, time, and a -removed / +added snippet from a prefix/suffix diff; the
+current row is highlighted and any row can be clicked to jump. Adding a new
+mutation path without a `History` call is a bug: the change becomes part of
+the next entry instead of its own.
+
 The bar between the panes (`#splitter`) drags to resize them. The editor pane's
 flex-basis is `--split` on `.main-container`, a percent of the content box; the
 preview takes the rest. Double-click resets to 50%. Arrow keys nudge when the bar

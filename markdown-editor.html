@@ -303,6 +303,7 @@
             flex: 1;
             display: flex;
             overflow: hidden;
+            position: relative;
             padding: 16px;
             gap: 0;
             --split: 50%;
@@ -667,6 +668,81 @@
             justify-content: space-between;
         }
         
+        /* History panel: overlays the right edge of the main container */
+        .history-panel {
+            display: none;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            bottom: 16px;
+            width: 340px;
+            max-width: calc(100% - 32px);
+            z-index: 5;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+            flex-direction: column;
+            overflow: hidden;
+            font-size: 12px;
+        }
+        .history-panel.visible { display: flex; }
+        .history-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .history-title { font-weight: 600; color: #1e293b; }
+        .history-summary { color: #64748b; flex: 1; font-size: 11px; }
+        .history-close {
+            border: none;
+            background: transparent;
+            font-size: 18px;
+            line-height: 1;
+            color: #64748b;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .history-close:hover { color: #1e293b; }
+        .history-list { flex: 1; overflow-y: auto; }
+        .history-foot {
+            padding: 6px 10px;
+            color: #94a3b8;
+            font-size: 11px;
+            border-top: 1px solid #e2e8f0;
+            background: #f8fafc;
+        }
+        .hist-entry {
+            padding: 6px 10px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+        }
+        .hist-entry:hover { background: #f1f5f9; }
+        .hist-entry.current {
+            background: #dbeafe;
+            border-left-color: #3b82f6;
+            cursor: default;
+        }
+        .hist-entry.redo { opacity: 0.55; }
+        .hist-head { display: flex; gap: 8px; align-items: baseline; }
+        .hist-idx { color: #94a3b8; font-family: monospace; }
+        .hist-label { font-weight: 600; color: #1e293b; flex: 1; }
+        .hist-meta { color: #64748b; font-size: 11px; white-space: nowrap; }
+        .hist-change {
+            font-family: monospace;
+            font-size: 11px;
+            margin-top: 2px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .hist-del { color: #b91c1c; background: #fee2e2; padding: 0 3px; border-radius: 3px; margin-right: 4px; }
+        .hist-add { color: #166534; background: #dcfce7; padding: 0 3px; border-radius: 3px; }
+        .hist-nil { color: #94a3b8; }
+
         /* Console/Log Panel (hidden by default) */
         .console-panel {
             display: none;
@@ -977,6 +1053,26 @@
     
     <!-- Toolbar -->
     <div class="toolbar">
+        <div class="toolbar-group">
+            <button id="undoBtn" class="toolbar-btn" title="Undo (Ctrl+Z)" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+            </button>
+            <button id="redoBtn" class="toolbar-btn" title="Redo (Ctrl+Y)" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/>
+                </svg>
+            </button>
+            <button id="historyBtn" class="toolbar-btn" title="History (Ctrl+Shift+H)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="9"/>
+                    <polyline points="12 7 12 12 15.5 14"/>
+                </svg>
+            </button>
+        </div>
         <!-- Text Formatting Group -->
         <div class="toolbar-group">
             <button id="boldBtn" class="toolbar-btn" title="Bold (Ctrl+B)">
@@ -1194,6 +1290,16 @@
                 <div id="preview" contenteditable="true"></div>
             </div>
         </div>
+        <!-- History panel: the undo/redo stack, newest first -->
+        <aside class="history-panel" id="historyPanel" aria-label="Undo history">
+            <div class="history-header">
+                <span class="history-title">History</span>
+                <span class="history-summary" id="historySummary"></span>
+                <button class="history-close" id="historyClose" title="Close (Ctrl+Shift+H)">&times;</button>
+            </div>
+            <div class="history-list" id="historyList"></div>
+            <div class="history-foot">Click a row to jump. Undo/Redo tooltips name the next step.</div>
+        </aside>
     </div>
     
     <!-- Status Bar -->
@@ -1284,9 +1390,9 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.5",
+  version:  "1.3.6",
   released: "13 September 2026",
-  compiled: "131907Z SEP 26",
+  compiled: "131915Z SEP 26",
   corrections: [
     ["Raw and preview were two live copies of the note",
      "A document model is now the source of truth. Both panes are views. "
@@ -1327,7 +1433,12 @@ const BUILD = {
      + "The file loads in the editor. Launch copies go under %TEMP%."],
     ["The two panes were always the same width",
      "Drag the bar between them to resize. Double-click resets to half. "
-     + "The split is remembered in this browser."]
+     + "The split is remembered in this browser."],
+    ["Undo only worked in the raw pane, and only for typing",
+     "One undo stack for both panes. Ctrl+Z / Ctrl+Y (or the toolbar arrows) "
+     + "step through typing, formatting, inserts, and table edits. The Undo/Redo "
+     + "tooltips name the step. Ctrl+Shift+H opens a History panel that lists "
+     + "every snapshot with what changed; click a row to jump to it."]
   ]
 };
 
@@ -3120,6 +3231,253 @@ const AppState = {
 
 /* @requires-dom */
 // ============================================================================
+// UNDO / REDO — one stack for both panes. A snapshot is the markdown plus the
+// caret in whichever pane was active. Every entry carries a label naming the
+// step that produced it, so the Undo/Redo tooltips and the History panel can
+// say what will happen. Typing coalesces (350 ms idle); toolbar and menu
+// actions commit at once.
+// ============================================================================
+const History = {
+    stack: [],
+    index: -1,
+    max: 100,
+    locked: false,
+    _timer: null,
+    _pendingLabel: null,
+
+    capture(label) {
+        const sel = Doc.selection();
+        return {
+            label: label || "Edit",
+            at: Date.now(),
+            md: DOM.editor.value,
+            from: sel.from,
+            to: sel.to,
+            editorFrom: DOM.editor.selectionStart,
+            editorTo: DOM.editor.selectionEnd,
+            pane: AppState.activePane
+        };
+    },
+
+    /* A discrete step (Bold, Insert table, Paste). Flushes pending typing
+       first so the typing and the step are two separate entries. */
+    commit(label) {
+        if (this.locked) return;
+        this.flush();
+        this._push(this.capture(label));
+    },
+
+    /* Typing. Coalesces into one entry until 350 ms pass without input
+       or something else commits. */
+    schedule(label) {
+        if (this.locked) return;
+        this._pendingLabel = label || "Typing";
+        if (this._timer) clearTimeout(this._timer);
+        this._timer = setTimeout(() => {
+            this._timer = null;
+            this._push(this.capture(this._pendingLabel));
+        }, 350);
+    },
+
+    flush() {
+        if (!this._timer) return;
+        clearTimeout(this._timer);
+        this._timer = null;
+        this._push(this.capture(this._pendingLabel));
+    },
+
+    _push(cap) {
+        const top = this.stack[this.index];
+        if (top && top.md === cap.md) {
+            top.from = cap.from;
+            top.to = cap.to;
+            top.editorFrom = cap.editorFrom;
+            top.editorTo = cap.editorTo;
+            top.pane = cap.pane;
+            this.render();
+            return;
+        }
+        this.stack = this.stack.slice(0, this.index + 1);
+        this.stack.push(cap);
+        if (this.stack.length > this.max) this.stack.shift();
+        this.index = this.stack.length - 1;
+        this.render();
+    },
+
+    reset(label) {
+        if (this._timer) {
+            clearTimeout(this._timer);
+            this._timer = null;
+        }
+        this.stack = [];
+        this.index = -1;
+        this._push(this.capture(label || "Start"));
+    },
+
+    apply(cap) {
+        this.locked = true;
+        try {
+            DOM.editor.value = cap.md;
+            Doc.load(cap.md);
+            Doc.setSelection(cap.from, cap.to);
+            DOM.preview.innerHTML = Doc.previewHTML();
+            AppState.activePane = cap.pane || "editor";
+            if (cap.pane === "preview") {
+                DOM.preview.focus();
+                Doc.restorePreviewSelection(DOM.preview);
+                IconHighlighter.checkPreviewFormats();
+            } else {
+                DOM.editor.focus();
+                const n = DOM.editor.value.length;
+                const a = Math.max(0, Math.min(n, cap.editorFrom || 0));
+                const b = Math.max(0, Math.min(n, cap.editorTo || a));
+                DOM.editor.setSelectionRange(a, b);
+                IconHighlighter.checkEditorFormats();
+            }
+            EditorOps.updateStatus();
+            AppState.setModified(true);
+        } finally {
+            this.locked = false;
+        }
+        this.render();
+    },
+
+    undo() {
+        this.flush();
+        if (this.index <= 0) return false;
+        this.index--;
+        this.apply(this.stack[this.index]);
+        Logger.info("History", "Undo -> #" + this.index + " " + this.stack[this.index].label);
+        return true;
+    },
+
+    redo() {
+        this.flush();
+        if (this.index >= this.stack.length - 1) return false;
+        this.index++;
+        this.apply(this.stack[this.index]);
+        Logger.info("History", "Redo -> #" + this.index + " " + this.stack[this.index].label);
+        return true;
+    },
+
+    goTo(i) {
+        this.flush();
+        if (i < 0 || i >= this.stack.length || i === this.index) return false;
+        this.index = i;
+        this.apply(this.stack[i]);
+        Logger.info("History", "Jump -> #" + i + " " + this.stack[i].label);
+        return true;
+    },
+
+    canUndo() { return this.index > 0; },
+    canRedo() { return this.index < this.stack.length - 1; },
+
+    /* ---- visibility ------------------------------------------------------ */
+
+    /* What changed between entry i-1 and entry i: the text removed and the
+       text added, found by stripping the common prefix and suffix. */
+    diffAt(i) {
+        const b = this.stack[i] ? this.stack[i].md : "";
+        const a = i > 0 && this.stack[i - 1] ? this.stack[i - 1].md : "";
+        let p = 0;
+        const maxP = Math.min(a.length, b.length);
+        while (p < maxP && a[p] === b[p]) p++;
+        let s = 0;
+        while (s < maxP - p && a[a.length - 1 - s] === b[b.length - 1 - s]) s++;
+        return {
+            removed: a.slice(p, a.length - s),
+            added: b.slice(p, b.length - s),
+            at: p,
+            delta: b.length - a.length
+        };
+    },
+
+    snippet(s, n) {
+        n = n || 36;
+        s = String(s).replace(/\n/g, "⏎");
+        return s.length > n ? s.slice(0, n - 1) + "…" : s;
+    },
+
+    summary() {
+        const n = this.stack.length;
+        return {
+            entries: n,
+            undo: Math.max(0, this.index),
+            redo: Math.max(0, n - 1 - this.index),
+            index: this.index,
+            current: this.stack[this.index] || null,
+            next: this.stack[this.index + 1] || null
+        };
+    },
+
+    updateButtons() {
+        const s = this.summary();
+        if (DOM.undoBtn) {
+            DOM.undoBtn.disabled = !this.canUndo();
+            DOM.undoBtn.title = (this.canUndo() ? "Undo: " + s.current.label : "Nothing to undo") + " (Ctrl+Z)";
+        }
+        if (DOM.redoBtn) {
+            DOM.redoBtn.disabled = !this.canRedo();
+            DOM.redoBtn.title = (this.canRedo() ? "Redo: " + s.next.label : "Nothing to redo") + " (Ctrl+Y)";
+        }
+        if (DOM.historyBtn) {
+            DOM.historyBtn.title = "History: " + s.undo + " to undo, " + s.redo + " to redo (Ctrl+Shift+H)";
+        }
+    },
+
+    isPanelOpen() {
+        return !!(DOM.historyPanel && DOM.historyPanel.classList.contains("visible"));
+    },
+
+    togglePanel(force) {
+        if (!DOM.historyPanel) return;
+        const open = force === undefined ? !this.isPanelOpen() : !!force;
+        DOM.historyPanel.classList.toggle("visible", open);
+        if (DOM.historyBtn) DOM.historyBtn.classList.toggle("active", open);
+        if (open) this.render();
+    },
+
+    render() {
+        this.updateButtons();
+        if (!this.isPanelOpen() || !DOM.historyList) return;
+        const esc = s => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        const time = t => new Date(t).toLocaleTimeString("en-US", { hour12: false });
+        const s = this.summary();
+        if (DOM.historySummary) {
+            DOM.historySummary.textContent = s.entries + " snapshot" + (s.entries === 1 ? "" : "s")
+                + " · " + s.undo + " to undo · " + s.redo + " to redo";
+        }
+        let html = "";
+        for (let i = this.stack.length - 1; i >= 0; i--) {
+            const e = this.stack[i];
+            const d = this.diffAt(i);
+            const state = i === this.index ? "current" : (i < this.index ? "undo" : "redo");
+            let change = "";
+            if (i > 0) {
+                if (d.removed) change += "<span class=\"hist-del\">−" + esc(this.snippet(d.removed)) + "</span>";
+                if (d.added) change += "<span class=\"hist-add\">+" + esc(this.snippet(d.added)) + "</span>";
+                if (!d.removed && !d.added) change = "<span class=\"hist-nil\">no text change</span>";
+            } else {
+                change = "<span class=\"hist-nil\">" + e.md.length + " chars</span>";
+            }
+            const hint = state === "current" ? "Current state"
+                : (state === "undo" ? "Click to undo back to here" : "Click to redo forward to here");
+            html += "<div class=\"hist-entry " + state + "\" data-index=\"" + i + "\" title=\"" + hint + "\">"
+                + "<div class=\"hist-head\"><span class=\"hist-idx\">#" + i + "</span>"
+                + "<span class=\"hist-label\">" + esc(e.label) + "</span>"
+                + "<span class=\"hist-meta\">" + (e.pane === "preview" ? "preview" : "raw")
+                + " · " + (d.delta >= 0 ? "+" : "") + d.delta + " · " + time(e.at) + "</span></div>"
+                + "<div class=\"hist-change\">" + change + "</div>"
+                + "</div>";
+        }
+        DOM.historyList.innerHTML = html;
+        const cur = DOM.historyList.querySelector(".hist-entry.current");
+        if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: "nearest" });
+    }
+};
+
+/* @requires-dom */
+// ============================================================================
 // TABLE OPERATIONS
 // ============================================================================
 const TableOps = {
@@ -3214,6 +3572,7 @@ const TableOps = {
             AppState.setModified(true);
             DOM.editor.focus();
         }
+        History.commit("Insert " + rows + "x" + cols + " table");
         Logger.info("Table", "Inserted " + rows + "x" + cols + " table");
     },
 
@@ -3228,6 +3587,11 @@ const TableOps = {
         const focus = AppState.activePane === "preview" ? "preview" : "editor";
         syncFromDoc(focus);
         if (focus === "editor") DOM.editor.focus();
+        const labels = {
+            rowAbove: "Insert row above", rowBelow: "Insert row below", rowDel: "Delete row",
+            colLeft: "Insert column left", colRight: "Insert column right", colDel: "Delete column"
+        };
+        History.commit(labels[op] || "Table edit");
     }
 };
 
@@ -3516,6 +3880,8 @@ const PreviewOps = {
         else if (op === "back") Doc.deleteBackward();
         else if (op === "fwd") Doc.deleteForward();
         syncFromDoc("preview");
+        if (op === "split") History.commit("New line");
+        else History.schedule("Delete");
         queueMicrotask(() => { this._opLock = false; });
     },
 
@@ -3538,6 +3904,7 @@ const PreviewOps = {
             Doc.readPreviewSelection(DOM.preview);
             Doc.insertText(e.data || "");
             syncFromDoc("preview");
+            History.schedule("Typing");
         } else if (t === "insertParagraph" || t === "insertLineBreak") {
             this.runOp("split");
         } else if (t === "deleteContentBackward" || t === "deleteByCut") {
@@ -3561,6 +3928,7 @@ const PreviewOps = {
         Doc.readPreviewSelection(DOM.preview);
         Doc.paste(text);
         syncFromDoc("preview");
+        History.commit("Paste");
     },
 
     applyFormat(format) {
@@ -4052,6 +4420,7 @@ const FileOps = {
         AppState.setModified(false);
         this.updateFileNameDisplay();
         EditorOps.updateStatus();
+        History.reset('New document');
         Logger.info('File', 'Created new document');
     },
     
@@ -4093,6 +4462,7 @@ const FileOps = {
             AppState.setModified(false);
             this.updateFileNameDisplay();
             DOM.statusLeft.textContent = `Opened: ${file.name}`;
+            History.reset('Open ' + file.name);
             Logger.info('File', `Opened: ${file.name}`);
         };
         reader.onerror = () => {
@@ -4348,7 +4718,7 @@ const ModalOps = {
         };
     },
 
-    insertAtSaved(md) {
+    insertAtSaved(md, label) {
         const s = this._saved || { pane: AppState.activePane, from: Doc.selection().from, to: Doc.selection().to };
         if (s.pane === "editor") {
             AppState.activePane = "editor";
@@ -4367,6 +4737,7 @@ const ModalOps = {
             syncFromDoc("preview");
             DOM.preview.focus();
         }
+        History.commit(label || "Insert");
     },
 
     openLinkModal() {
@@ -4444,7 +4815,7 @@ const ModalOps = {
         }
         
         this.closeLinkModal();
-        this.insertAtSaved("[" + text + "](" + url + ")");
+        this.insertAtSaved("[" + text + "](" + url + ")", "Insert link");
     },
     
     openImageModal() {
@@ -4512,7 +4883,7 @@ const ModalOps = {
         }
         
         this.closeImageModal();
-        this.insertAtSaved("![" + alt + "](" + url + ")");
+        this.insertAtSaved("![" + alt + "](" + url + ")", "Insert image");
     }
 };
 
@@ -4552,6 +4923,13 @@ const DOM = {
     viewPreviewBtn: document.getElementById('viewPreviewBtn'),
     
     // Toolbar Buttons
+    undoBtn: document.getElementById('undoBtn'),
+    redoBtn: document.getElementById('redoBtn'),
+    historyBtn: document.getElementById('historyBtn'),
+    historyPanel: document.getElementById('historyPanel'),
+    historySummary: document.getElementById('historySummary'),
+    historyList: document.getElementById('historyList'),
+    historyClose: document.getElementById('historyClose'),
     boldBtn: document.getElementById('boldBtn'),
     italicBtn: document.getElementById('italicBtn'),
     underlineBtn: document.getElementById('underlineBtn'),
@@ -4614,6 +4992,7 @@ function setupEventListeners() {
     DOM.editor.addEventListener('input', () => {
         EditorOps.updatePreview();
         AppState.setModified(true);
+        History.schedule('Typing');
     });
     
     // Editor selection change
@@ -4686,6 +5065,16 @@ function setupEventListeners() {
     });
     DOM.fileInput.addEventListener('change', (e) => FileOps.handleFileOpen(e));
     
+    // Undo / redo / history panel
+    DOM.undoBtn.addEventListener('click', () => History.undo());
+    DOM.redoBtn.addEventListener('click', () => History.redo());
+    DOM.historyBtn.addEventListener('click', () => History.togglePanel());
+    DOM.historyClose.addEventListener('click', () => History.togglePanel(false));
+    DOM.historyList.addEventListener('click', (e) => {
+        const row = e.target.closest('.hist-entry');
+        if (row) History.goTo(+row.getAttribute('data-index'));
+    });
+
     // Format buttons
     DOM.boldBtn.addEventListener('click', () => handleFormat('bold'));
     DOM.italicBtn.addEventListener('click', () => handleFormat('italic'));
@@ -4759,6 +5148,26 @@ function setupEventListeners() {
     
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+        const inModalField = !!(e.target && e.target.closest && e.target.closest('.modal'));
+        if ((e.ctrlKey || e.metaKey) && !inModalField) {
+            const k = e.key.toLowerCase();
+            /* One undo stack for both panes replaces the textarea's native one. */
+            if (k === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) History.redo(); else History.undo();
+                return;
+            }
+            if (k === 'y') {
+                e.preventDefault();
+                History.redo();
+                return;
+            }
+            if (k === 'h' && e.shiftKey) {
+                e.preventDefault();
+                History.togglePanel();
+                return;
+            }
+        }
         if (e.ctrlKey || e.metaKey) {
             switch (e.key.toLowerCase()) {
                 case 'n':
@@ -4817,18 +5226,26 @@ function setupEventListeners() {
 /**
  * Handle format button clicks
  */
+const FORMAT_LABELS = {
+    bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', code: 'Inline code',
+    h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', h4: 'Heading 4', h5: 'Heading 5', h6: 'Heading 6',
+    bullet: 'Bullet list', number: 'Numbered list', quoteIncrease: 'Quote +', quoteDecrease: 'Quote -',
+    codeBlock: 'Code block', hr: 'Horizontal rule'
+};
+
 function handleFormat(format) {
     const inlineFormats = ['bold', 'italic', 'underline', 'strike', 'code'];
     const blockFormats = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'bullet', 'number', 'quoteIncrease', 'quoteDecrease', 'codeBlock', 'hr'];
     if (AppState.activePane === 'preview') {
         PreviewOps.applyFormat(format);
-        return;
-    }
-    if (inlineFormats.includes(format)) {
+    } else if (inlineFormats.includes(format)) {
         EditorOps.applyInlineFormat(format);
     } else if (blockFormats.includes(format)) {
         EditorOps.applyBlockFormat(format);
+    } else {
+        return;
     }
+    History.commit(FORMAT_LABELS[format] || format);
 }
 
 // ============================================================================
@@ -4851,6 +5268,7 @@ function loadFromPayload() {
         FileOps.updateFileNameDisplay();
         DOM.statusLeft.textContent = "Opened: " + filename;
         document.title = "Markdown Editor v" + BUILD.version + " - " + filename;
+        History.reset("Open " + filename);
 
         Logger.success("App", "Loaded from launcher payload: " + filename);
         return true;
@@ -4874,6 +5292,7 @@ function init() {
     if (!loadFromPayload()) {
         Doc.load(DOM.editor.value || "");
         DOM.preview.innerHTML = Doc.previewHTML();
+        History.reset("Start");
     }
 
     ScrollSyncManager.init(DOM.editor, DOM.previewContainer, DOM.trackBtn);

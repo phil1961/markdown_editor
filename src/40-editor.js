@@ -94,6 +94,7 @@ const TableOps = {
             AppState.setModified(true);
             DOM.editor.focus();
         }
+        History.commit("Insert " + rows + "x" + cols + " table");
         Logger.info("Table", "Inserted " + rows + "x" + cols + " table");
     },
 
@@ -108,6 +109,11 @@ const TableOps = {
         const focus = AppState.activePane === "preview" ? "preview" : "editor";
         syncFromDoc(focus);
         if (focus === "editor") DOM.editor.focus();
+        const labels = {
+            rowAbove: "Insert row above", rowBelow: "Insert row below", rowDel: "Delete row",
+            colLeft: "Insert column left", colRight: "Insert column right", colDel: "Delete column"
+        };
+        History.commit(labels[op] || "Table edit");
     }
 };
 

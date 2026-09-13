@@ -120,6 +120,26 @@
     
     <!-- Toolbar -->
     <div class="toolbar">
+        <div class="toolbar-group">
+            <button id="undoBtn" class="toolbar-btn" title="Undo (Ctrl+Z)" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="1 4 1 10 7 10"/>
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>
+                </svg>
+            </button>
+            <button id="redoBtn" class="toolbar-btn" title="Redo (Ctrl+Y)" disabled>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 4 23 10 17 10"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.13-9.36L23 10"/>
+                </svg>
+            </button>
+            <button id="historyBtn" class="toolbar-btn" title="History (Ctrl+Shift+H)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="9"/>
+                    <polyline points="12 7 12 12 15.5 14"/>
+                </svg>
+            </button>
+        </div>
         <!-- Text Formatting Group -->
         <div class="toolbar-group">
             <button id="boldBtn" class="toolbar-btn" title="Bold (Ctrl+B)">
@@ -337,6 +357,16 @@
                 <div id="preview" contenteditable="true"></div>
             </div>
         </div>
+        <!-- History panel: the undo/redo stack, newest first -->
+        <aside class="history-panel" id="historyPanel" aria-label="Undo history">
+            <div class="history-header">
+                <span class="history-title">History</span>
+                <span class="history-summary" id="historySummary"></span>
+                <button class="history-close" id="historyClose" title="Close (Ctrl+Shift+H)">&times;</button>
+            </div>
+            <div class="history-list" id="historyList"></div>
+            <div class="history-foot">Click a row to jump. Undo/Redo tooltips name the next step.</div>
+        </aside>
     </div>
     
     <!-- Status Bar -->

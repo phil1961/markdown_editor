@@ -17,6 +17,7 @@ const FileOps = {
         AppState.setModified(false);
         this.updateFileNameDisplay();
         EditorOps.updateStatus();
+        History.reset('New document');
         Logger.info('File', 'Created new document');
     },
     
@@ -58,6 +59,7 @@ const FileOps = {
             AppState.setModified(false);
             this.updateFileNameDisplay();
             DOM.statusLeft.textContent = `Opened: ${file.name}`;
+            History.reset('Open ' + file.name);
             Logger.info('File', `Opened: ${file.name}`);
         };
         reader.onerror = () => {

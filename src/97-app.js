@@ -7,6 +7,7 @@ function setupEventListeners() {
     DOM.editor.addEventListener('input', () => {
         EditorOps.updatePreview();
         AppState.setModified(true);
+        History.schedule('Typing');
     });
     
     // Editor selection change
@@ -79,6 +80,16 @@ function setupEventListeners() {
     });
     DOM.fileInput.addEventListener('change', (e) => FileOps.handleFileOpen(e));
     
+    // Undo / redo / history panel
+    DOM.undoBtn.addEventListener('click', () => History.undo());
+    DOM.redoBtn.addEventListener('click', () => History.redo());
+    DOM.historyBtn.addEventListener('click', () => History.togglePanel());
+    DOM.historyClose.addEventListener('click', () => History.togglePanel(false));
+    DOM.historyList.addEventListener('click', (e) => {
+        const row = e.target.closest('.hist-entry');
+        if (row) History.goTo(+row.getAttribute('data-index'));
+    });
+
     // Format buttons
     DOM.boldBtn.addEventListener('click', () => handleFormat('bold'));
     DOM.italicBtn.addEventListener('click', () => handleFormat('italic'));
@@ -152,6 +163,26 @@ function setupEventListeners() {
     
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
+        const inModalField = !!(e.target && e.target.closest && e.target.closest('.modal'));
+        if ((e.ctrlKey || e.metaKey) && !inModalField) {
+            const k = e.key.toLowerCase();
+            /* One undo stack for both panes replaces the textarea's native one. */
+            if (k === 'z') {
+                e.preventDefault();
+                if (e.shiftKey) History.redo(); else History.undo();
+                return;
+            }
+            if (k === 'y') {
+                e.preventDefault();
+                History.redo();
+                return;
+            }
+            if (k === 'h' && e.shiftKey) {
+                e.preventDefault();
+                History.togglePanel();
+                return;
+            }
+        }
         if (e.ctrlKey || e.metaKey) {
             switch (e.key.toLowerCase()) {
                 case 'n':
@@ -210,18 +241,26 @@ function setupEventListeners() {
 /**
  * Handle format button clicks
  */
+const FORMAT_LABELS = {
+    bold: 'Bold', italic: 'Italic', underline: 'Underline', strike: 'Strikethrough', code: 'Inline code',
+    h1: 'Heading 1', h2: 'Heading 2', h3: 'Heading 3', h4: 'Heading 4', h5: 'Heading 5', h6: 'Heading 6',
+    bullet: 'Bullet list', number: 'Numbered list', quoteIncrease: 'Quote +', quoteDecrease: 'Quote -',
+    codeBlock: 'Code block', hr: 'Horizontal rule'
+};
+
 function handleFormat(format) {
     const inlineFormats = ['bold', 'italic', 'underline', 'strike', 'code'];
     const blockFormats = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'bullet', 'number', 'quoteIncrease', 'quoteDecrease', 'codeBlock', 'hr'];
     if (AppState.activePane === 'preview') {
         PreviewOps.applyFormat(format);
-        return;
-    }
-    if (inlineFormats.includes(format)) {
+    } else if (inlineFormats.includes(format)) {
         EditorOps.applyInlineFormat(format);
     } else if (blockFormats.includes(format)) {
         EditorOps.applyBlockFormat(format);
+    } else {
+        return;
     }
+    History.commit(FORMAT_LABELS[format] || format);
 }
 
 // ============================================================================
@@ -244,6 +283,7 @@ function loadFromPayload() {
         FileOps.updateFileNameDisplay();
         DOM.statusLeft.textContent = "Opened: " + filename;
         document.title = "Markdown Editor v" + BUILD.version + " - " + filename;
+        History.reset("Open " + filename);
 
         Logger.success("App", "Loaded from launcher payload: " + filename);
         return true;
@@ -267,6 +307,7 @@ function init() {
     if (!loadFromPayload()) {
         Doc.load(DOM.editor.value || "");
         DOM.preview.innerHTML = Doc.previewHTML();
+        History.reset("Start");
     }
 
     ScrollSyncManager.init(DOM.editor, DOM.previewContainer, DOM.trackBtn);

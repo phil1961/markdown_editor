@@ -34,6 +34,13 @@ const DOM = {
     viewPreviewBtn: document.getElementById('viewPreviewBtn'),
     
     // Toolbar Buttons
+    undoBtn: document.getElementById('undoBtn'),
+    redoBtn: document.getElementById('redoBtn'),
+    historyBtn: document.getElementById('historyBtn'),
+    historyPanel: document.getElementById('historyPanel'),
+    historySummary: document.getElementById('historySummary'),
+    historyList: document.getElementById('historyList'),
+    historyClose: document.getElementById('historyClose'),
     boldBtn: document.getElementById('boldBtn'),
     italicBtn: document.getElementById('italicBtn'),
     underlineBtn: document.getElementById('underlineBtn'),

@@ -20,7 +20,7 @@ node build.js --check    # fail if the assembled file is stale
 - View modes — Editor only, Preview only, or Both
 - Open via drag-and-drop, File menu, or Windows Explorer / the command line
 - Export — Download markdown, or Export As HTML / Plain Text
-- Native undo in the textarea (Ctrl+Z)
+- Undo/redo across both panes (Ctrl+Z / Ctrl+Y), with a History panel (Ctrl+Shift+H) that lists every step and what it changed
 
 ---
 
@@ -68,7 +68,9 @@ The launcher copies the editor under `%TEMP%` and injects the file. It does not 
 | `Ctrl+S` | Download markdown |
 | `Ctrl+O` | Open |
 | `Ctrl+N` | New |
-| `Ctrl+Z` | Undo (native textarea) |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
+| `Ctrl+Shift+H` | Toggle the History panel |
 | `Ctrl+Shift+L` | Toggle debug log panel |
 | `Escape` | Close menus and dialogs |
 

@@ -52,6 +52,8 @@ const PreviewOps = {
         else if (op === "back") Doc.deleteBackward();
         else if (op === "fwd") Doc.deleteForward();
         syncFromDoc("preview");
+        if (op === "split") History.commit("New line");
+        else History.schedule("Delete");
         queueMicrotask(() => { this._opLock = false; });
     },
 
@@ -74,6 +76,7 @@ const PreviewOps = {
             Doc.readPreviewSelection(DOM.preview);
             Doc.insertText(e.data || "");
             syncFromDoc("preview");
+            History.schedule("Typing");
         } else if (t === "insertParagraph" || t === "insertLineBreak") {
             this.runOp("split");
         } else if (t === "deleteContentBackward" || t === "deleteByCut") {
@@ -97,6 +100,7 @@ const PreviewOps = {
         Doc.readPreviewSelection(DOM.preview);
         Doc.paste(text);
         syncFromDoc("preview");
+        History.commit("Paste");
     },
 
     applyFormat(format) {
