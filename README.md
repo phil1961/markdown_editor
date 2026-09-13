@@ -14,6 +14,7 @@ node build.js --check    # fail if the assembled file is stale
 ## Features
 
 - Dual-pane editing — markdown on the left, live rendered preview on the right (both panes are editable)
+- Resizable panes — drag the bar between them, double-click to reset
 - Synchronized scrolling (Track button)
 - Formatting toolbar — bold, italic, underline, strikethrough, H1–H6, lists, nested quotes, code, images, links, tables, horizontal rules
 - View modes — Editor only, Preview only, or Both

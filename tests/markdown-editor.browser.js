@@ -720,6 +720,67 @@ const launchArgs = [
     const cols2 = await evalJs("document.querySelectorAll('#preview thead th').length");
     ok(cols2 === 2, "delete column removes it", String(cols2));
 
+    G("QC: drag the bar between the panes to resize them");
+    await click("#viewBothBtn");
+    await evalJs("(() => { Splitter.set(50); Splitter.persist(); })()");
+    await frames();
+    const before = await evalJs(`(() => {
+      const ed = document.getElementById("editorPane").getBoundingClientRect();
+      const pr = document.getElementById("previewPane").getBoundingClientRect();
+      const bar = document.getElementById("splitter").getBoundingClientRect();
+      return { ed: ed.width, pr: pr.width, x: bar.left + bar.width / 2, y: bar.top + bar.height / 2, barW: bar.width, barH: bar.height };
+    })()`);
+    ok(before.barW >= 6 && before.barH > 100, "the splitter bar is visible between the panes", JSON.stringify(before));
+    ok(Math.abs(before.ed - before.pr) < 4, "panes start at equal widths (" + Math.round(before.ed) + " / " + Math.round(before.pr) + ")");
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: before.x, y: before.y }, S);
+    await cdp.send("Input.dispatchMouseEvent", { type: "mousePressed", x: before.x, y: before.y, button: "left", clickCount: 1 }, S);
+    for (let i = 1; i <= 8; i++)
+      await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: before.x + i * 25, y: before.y, button: "left" }, S);
+    await frames();
+    const during = await evalJs("document.querySelector('.main-container').classList.contains('resizing')");
+    ok(during, "container carries the resizing class while dragging");
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: before.x + 200, y: before.y, button: "left", clickCount: 1 }, S);
+    await frames();
+    const after = await evalJs(`(() => {
+      const ed = document.getElementById("editorPane").getBoundingClientRect();
+      const pr = document.getElementById("previewPane").getBoundingClientRect();
+      const bar = document.getElementById("splitter").getBoundingClientRect();
+      let saved = null; try { saved = localStorage.getItem("md-editor-split"); } catch (e) {}
+      return { ed: ed.width, pr: pr.width, barX: bar.left + bar.width / 2, split: document.querySelector('.main-container').style.getPropertyValue('--split'), saved,
+               resizing: document.querySelector('.main-container').classList.contains('resizing'),
+               sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth };
+    })()`);
+    ok(after.ed > before.ed + 150, "dragging right widens the editor pane (" + Math.round(before.ed) + " → " + Math.round(after.ed) + ")", JSON.stringify(after));
+    ok(after.pr < before.pr - 150, "and narrows the preview pane (" + Math.round(before.pr) + " → " + Math.round(after.pr) + ")");
+    ok(Math.abs(after.barX - (before.x + 200)) <= 4, "the bar ends up under the pointer (" + Math.round(after.barX) + " vs " + Math.round(before.x + 200) + ")");
+    ok(!after.resizing, "resizing class is removed on release");
+    ok(after.saved && after.saved === after.split, "the split is persisted to localStorage (" + after.saved + ")");
+    ok(after.sw <= after.cw + 1, "no horizontal overflow after resizing");
+    await shot("05-split-dragged", "Editor pane widened by dragging the bar.");
+    await cdp.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: after.barX, y: before.y }, S);
+    for (const type of ["mousePressed", "mouseReleased", "mousePressed", "mouseReleased"])
+      await cdp.send("Input.dispatchMouseEvent", { type, x: after.barX, y: before.y, button: "left", clickCount: type === "mousePressed" ? 2 : 2 }, S);
+    await frames();
+    const resetW = await evalJs(`(() => {
+      const ed = document.getElementById("editorPane").getBoundingClientRect();
+      const pr = document.getElementById("previewPane").getBoundingClientRect();
+      return { ed: ed.width, pr: pr.width };
+    })()`);
+    ok(Math.abs(resetW.ed - resetW.pr) < 4, "double-click resets to equal widths (" + Math.round(resetW.ed) + " / " + Math.round(resetW.pr) + ")");
+    await evalJs("(() => { document.getElementById('splitter').focus(); })()");
+    for (let i = 0; i < 5; i++) {
+      await cdp.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 }, S);
+      await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowLeft", code: "ArrowLeft", windowsVirtualKeyCode: 37 }, S);
+    }
+    await frames();
+    const keyed = await evalJs("parseFloat(document.querySelector('.main-container').style.getPropertyValue('--split'))");
+    ok(keyed === 40, "five ArrowLeft presses move the split from 50% to 40% (" + keyed + ")");
+    await evalJs("(() => { Splitter.set(50); Splitter.persist(); })()");
+    await click("#viewEditorBtn");
+    const hidden = await evalJs("getComputedStyle(document.getElementById('splitter')).display");
+    ok(hidden === "none", "the bar is hidden in Editor-only view");
+    await click("#viewBothBtn");
+
     G("QC: Explorer launcher payload loads the file");
     const launched = await evalJs("(() => { const bytes = new TextEncoder().encode('# From Explorer\\n\\nhello from the launcher\\n'); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); window.MD_PAYLOAD = { b64: btoa(bin), filename: 'md-editor-launch-fixture.md' }; const okp = loadFromPayload(); return { okp, raw: document.getElementById('editor').value, h: (document.querySelector('#preview h1')||{}).textContent, name: document.getElementById('fileNameDisplay').textContent }; })()");
     ok(launched.okp === true, "loadFromPayload returns true");

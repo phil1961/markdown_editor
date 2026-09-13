@@ -120,6 +120,119 @@ const ViewModeManager = {
 };
 
 // ============================================================================
+// PANE SPLITTER — drag the bar between raw and preview to change their widths.
+// The editor pane's flex-basis is --split (a percent of the container's
+// content box); the preview pane takes the rest. Persisted in localStorage.
+// ============================================================================
+const Splitter = {
+    MIN_PCT: 18,
+    MAX_PCT: 82,
+    STORE: "md-editor-split",
+    _drag: null,
+
+    init() {
+        const el = DOM.splitter;
+        if (!el) return;
+        try {
+            const saved = localStorage.getItem(this.STORE);
+            if (saved && /%$/.test(saved)) this.set(parseFloat(saved));
+        } catch (err) { /* private mode */ }
+        el.addEventListener("pointerdown", e => this.start(e));
+        el.addEventListener("pointermove", e => this.move(e));
+        el.addEventListener("pointerup", e => this.stop(e));
+        el.addEventListener("pointercancel", e => this.stop(e));
+        el.addEventListener("dblclick", () => this.reset());
+        el.addEventListener("keydown", e => this.onKey(e));
+        this.updateAria();
+    },
+
+    get() {
+        const v = parseFloat(DOM.mainContainer.style.getPropertyValue("--split"));
+        return isFinite(v) ? v : 50;
+    },
+
+    set(pct) {
+        const n = Number(pct);
+        if (!isFinite(n)) return;
+        const clamped = Math.max(this.MIN_PCT, Math.min(this.MAX_PCT, n));
+        DOM.mainContainer.style.setProperty("--split", clamped.toFixed(1) + "%");
+        this.updateAria();
+    },
+
+    reset() {
+        this.set(50);
+        this.persist();
+    },
+
+    persist() {
+        try {
+            localStorage.setItem(this.STORE, this.get().toFixed(1) + "%");
+        } catch (err) { /* private mode */ }
+    },
+
+    updateAria() {
+        const el = DOM.splitter;
+        if (!el) return;
+        el.setAttribute("aria-valuemin", String(this.MIN_PCT));
+        el.setAttribute("aria-valuemax", String(this.MAX_PCT));
+        el.setAttribute("aria-valuenow", String(Math.round(this.get())));
+    },
+
+    /* Percent of the container's content box that puts the centre of the
+       bar at clientX. The editor's flex-basis is calc(--split - 8px) and the
+       bar's footprint is 16px, so the bar's centre sits at exactly --split of
+       the content box. flex-basis percentages resolve against that box, so
+       this keeps the bar under the pointer instead of drifting by the
+       padding. */
+    pctAt(clientX) {
+        const root = DOM.mainContainer;
+        const rect = root.getBoundingClientRect();
+        const cs = getComputedStyle(root);
+        const padL = parseFloat(cs.paddingLeft) || 0;
+        const padR = parseFloat(cs.paddingRight) || 0;
+        const content = rect.width - padL - padR;
+        if (content < 320) return null;
+        return ((clientX - rect.left - padL) / content) * 100;
+    },
+
+    start(e) {
+        if (e.button !== 0 && e.pointerType === "mouse") return;
+        if (AppState.viewMode !== "both") return;
+        e.preventDefault();
+        this._drag = { id: e.pointerId };
+        try { DOM.splitter.setPointerCapture(e.pointerId); } catch (err) { /* older engines */ }
+        DOM.mainContainer.classList.add("resizing");
+        this.move(e);
+    },
+
+    move(e) {
+        if (!this._drag || e.pointerId !== this._drag.id) return;
+        const pct = this.pctAt(e.clientX);
+        if (pct !== null) this.set(pct);
+    },
+
+    stop(e) {
+        if (!this._drag || e.pointerId !== this._drag.id) return;
+        this._drag = null;
+        try { DOM.splitter.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+        DOM.mainContainer.classList.remove("resizing");
+        this.persist();
+    },
+
+    onKey(e) {
+        const step = e.shiftKey ? 10 : 2;
+        if (e.key === "ArrowLeft") this.set(this.get() - step);
+        else if (e.key === "ArrowRight") this.set(this.get() + step);
+        else if (e.key === "Home") this.set(this.MIN_PCT);
+        else if (e.key === "End") this.set(this.MAX_PCT);
+        else if (e.key === "Enter") this.reset();
+        else return;
+        e.preventDefault();
+        this.persist();
+    }
+};
+
+// ============================================================================
 // ICON HIGHLIGHTING
 // ============================================================================
 const IconHighlighter = {

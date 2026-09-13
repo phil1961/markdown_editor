@@ -1,8 +1,8 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.4",
-  released: "12 September 2026",
+  version:  "1.3.5",
+  released: "13 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
     ["Raw and preview were two live copies of the note",
@@ -41,6 +41,9 @@ const BUILD = {
      "Header and File menu offer Download editor: the HTML file, to open locally."],
     ["Opening a .md from Explorer or the command line did nothing",
      "Right-click Open with Markdown Editor, or markdown-editor.bat file.md. "
-     + "The file loads in the editor. Launch copies go under %TEMP%."]
+     + "The file loads in the editor. Launch copies go under %TEMP%."],
+    ["The two panes were always the same width",
+     "Drag the bar between them to resize. Double-click resets to half. "
+     + "The split is remembered in this browser."]
   ]
 };

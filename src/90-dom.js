@@ -7,9 +7,10 @@ const DOM = {
     preview: document.getElementById('preview'),
     editorContainer: document.getElementById('editorContainer'),
     previewContainer: document.getElementById('previewContainer'),
-    mainContainer: document.querySelector('.main-container'),
-    editorPane: document.querySelector('.pane:first-child'),
-    previewPane: document.querySelector('.pane:last-child'),
+    mainContainer: document.getElementById('mainContainer') || document.querySelector('.main-container'),
+    editorPane: document.getElementById('editorPane'),
+    previewPane: document.getElementById('previewPane'),
+    splitter: document.getElementById('splitter'),
     
     // File Menu
     fileMenu: document.getElementById('fileMenu'),

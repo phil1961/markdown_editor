@@ -104,6 +104,12 @@ column left/right, delete column. Icons are disabled outside a table.
 The demo header **Download editor** (also File → Download this editor) saves
 `markdown-editor.html` so someone can open it from disk with no server.
 
+The bar between the panes (`#splitter`) drags to resize them. The editor pane's
+flex-basis is `--split` on `.main-container`, a percent of the content box; the
+preview takes the rest. Double-click resets to 50%. Arrow keys nudge when the bar
+is focused. Persisted in localStorage as `md-editor-split`. Hidden in Editor-only
+and Preview-only views.
+
 Windows Explorer: `markdown-editor.ps1 -Install` adds **Open with Markdown Editor**
 for `.md` files (does not steal the default opener). `markdown-editor.bat file.md`
 does the same from a prompt. The script copies the editor to `%TEMP%`, injects

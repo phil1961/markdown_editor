@@ -296,7 +296,16 @@
             display: flex;
             overflow: hidden;
             padding: 16px;
-            gap: 16px;
+            gap: 0;
+            --split: 50%;
+        }
+        .main-container.resizing {
+            cursor: col-resize;
+            user-select: none;
+        }
+        .main-container.resizing textarea,
+        .main-container.resizing #preview {
+            pointer-events: none;
         }
         
         /* Panes */
@@ -308,6 +317,44 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-width: 140px;
+        }
+        /* The bar is 10px + 3px margins = 16px. Half of that comes off the
+           editor's share so --split: 50% gives two panes of equal width. */
+        #editorPane {
+            flex: 0 0 calc(var(--split, 50%) - 8px);
+        }
+        #previewPane {
+            flex: 1 1 0;
+        }
+        .splitter {
+            flex: 0 0 10px;
+            margin: 0 3px;
+            cursor: col-resize;
+            align-self: stretch;
+            position: relative;
+            z-index: 3;
+            background: transparent;
+            touch-action: none;
+            outline: none;
+        }
+        .splitter:focus-visible::before {
+            background: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.35);
+        }
+        .splitter::before {
+            content: "";
+            position: absolute;
+            top: 16px;
+            bottom: 16px;
+            left: 4px;
+            width: 2px;
+            border-radius: 1px;
+            background: #cbd5e1;
+        }
+        .splitter:hover::before,
+        .main-container.resizing .splitter::before {
+            background: #667eea;
         }
         
         .pane-header {
@@ -706,17 +753,16 @@
         }
         
         /* View Mode Styles */
-        .main-container.editor-only .pane:last-child {
+        .main-container.editor-only #previewPane,
+        .main-container.editor-only #splitter,
+        .main-container.preview-only #editorPane,
+        .main-container.preview-only #splitter {
             display: none;
         }
         
-        .main-container.preview-only .pane:first-child {
-            display: none;
-        }
-        
-        .main-container.editor-only .pane:first-child,
-        .main-container.preview-only .pane:last-child {
-            flex: 1;
+        .main-container.editor-only #editorPane,
+        .main-container.preview-only #previewPane {
+            flex: 1 1 auto;
             max-width: 100%;
         }
         

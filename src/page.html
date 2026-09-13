@@ -321,17 +321,17 @@
     </div>
     
     <!-- Main Container -->
-    <div class="main-container">
+    <div class="main-container" id="mainContainer" style="--split: 50%;">
         <!-- Editor Pane -->
-        <div class="pane">
+        <div class="pane" id="editorPane">
             <div class="pane-header">Editor (Markdown)</div>
             <div class="pane-content" id="editorContainer">
                 <textarea id="editor" placeholder="Start writing markdown here..."></textarea>
             </div>
         </div>
-        
+        <div class="splitter" id="splitter" role="separator" tabindex="0" aria-orientation="vertical" aria-label="Resize panes" aria-controls="editorPane previewPane" title="Drag to resize. Double-click to reset. Arrow keys nudge."></div>
         <!-- Preview Pane -->
-        <div class="pane">
+        <div class="pane" id="previewPane">
             <div class="pane-header">Preview (Rendered)</div>
             <div class="pane-content" id="previewContainer">
                 <div id="preview" contenteditable="true"></div>

@@ -263,6 +263,7 @@ function init() {
     // Set up event listeners
     setupEventListeners();
     PreviewOps.init();
+    Splitter.init();
     if (!loadFromPayload()) {
         Doc.load(DOM.editor.value || "");
         DOM.preview.innerHTML = Doc.previewHTML();
