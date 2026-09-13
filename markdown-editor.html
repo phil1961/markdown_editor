@@ -988,8 +988,17 @@
                             <polyline points="17 21 17 13 7 13 7 21"/>
                             <polyline points="7 3 7 8 15 8"/>
                         </svg>
-                        Download
+                        Save
                         <span class="shortcut">Ctrl+S</span>
+                    </button>
+                    <button class="file-menu-item" id="menuSaveAs">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                            <polyline points="17 21 17 13 7 13 7 21"/>
+                            <polyline points="7 3 7 8 15 8"/>
+                        </svg>
+                        Save As...
+                        <span class="shortcut">Ctrl+Shift+S</span>
                     </button>
                     <div class="file-menu-submenu">
                         <button class="file-menu-item">
@@ -1390,9 +1399,9 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.6",
+  version:  "1.3.7",
   released: "13 September 2026",
-  compiled: "131915Z SEP 26",
+  compiled: "131919Z SEP 26",
   corrections: [
     ["Raw and preview were two live copies of the note",
      "A document model is now the source of truth. Both panes are views. "
@@ -1438,7 +1447,11 @@ const BUILD = {
      "One undo stack for both panes. Ctrl+Z / Ctrl+Y (or the toolbar arrows) "
      + "step through typing, formatting, inserts, and table edits. The Undo/Redo "
      + "tooltips name the step. Ctrl+Shift+H opens a History panel that lists "
-     + "every snapshot with what changed; click a row to jump to it."]
+     + "every snapshot with what changed; click a row to jump to it."],
+    ["Ctrl+S only downloaded a copy; there was no way to write back to the file",
+     "In Chrome, Edge and Brave, Open gives the editor a handle to the file and "
+     + "Save (Ctrl+S) writes back to it. A new document asks where the first time. "
+     + "Save As (Ctrl+Shift+S) always asks. Other browsers still download."]
   ]
 };
 
@@ -3219,6 +3232,7 @@ const HtmlToMarkdown = {
 // ============================================================================
 const AppState = {
     currentFile: null,
+    fileHandle: null,
     isModified: false,
     activePane: 'editor',
     viewMode: 'both', // 'editor', 'preview', or 'both'
@@ -4417,6 +4431,7 @@ const FileOps = {
         Doc.load('');
         DOM.preview.innerHTML = Doc.previewHTML();
         AppState.currentFile = null;
+        AppState.fileHandle = null;
         AppState.setModified(false);
         this.updateFileNameDisplay();
         EditorOps.updateStatus();
@@ -4424,8 +4439,36 @@ const FileOps = {
         Logger.info('File', 'Created new document');
     },
     
+    /* Chrome, Edge and Brave expose the File System Access API. With it,
+       Open returns a handle and Save writes back to that file. Elsewhere
+       (Firefox, Safari) Open uses the <input type=file> and Save downloads. */
+    hasFsAccess() {
+        return typeof window.showSaveFilePicker === "function"
+            && typeof window.showOpenFilePicker === "function";
+    },
+
+    OPEN_TYPES: [{
+        description: "Markdown, text or HTML",
+        accept: { "text/markdown": [".md", ".markdown"], "text/plain": [".txt"], "text/html": [".html"] }
+    }],
+    SAVE_TYPES: [{ description: "Markdown", accept: { "text/markdown": [".md", ".markdown"] } }],
+
     openFile() {
-        DOM.fileInput.click();
+        if (!this.hasFsAccess()) {
+            DOM.fileInput.click();
+            return;
+        }
+        window.showOpenFilePicker({ types: this.OPEN_TYPES, multiple: false })
+            .then(handles => {
+                const handle = handles && handles[0];
+                if (!handle) return;
+                return handle.getFile().then(file => this.loadFile(file, handle));
+            })
+            .catch(err => {
+                if (err && err.name === "AbortError") { Logger.info("File", "Open cancelled"); return; }
+                Logger.error("File", "Open picker failed: " + (err && err.message));
+                DOM.statusLeft.textContent = "Open failed: " + (err && err.message);
+            });
     },
     
     handleFileOpen(event) {
@@ -4436,9 +4479,9 @@ const FileOps = {
         event.target.value = '';
     },
     
-    loadFile(file) {
+    loadFile(file, handle) {
         // Validate file type
-        const validExtensions = ['.md', '.txt', '.html'];
+        const validExtensions = ['.md', '.markdown', '.txt', '.html'];
         const extension = '.' + file.name.split('.').pop().toLowerCase();
         
         if (!validExtensions.includes(extension)) {
@@ -4459,6 +4502,8 @@ const FileOps = {
             DOM.editor.value = content;
             EditorOps.updatePreviewNow();
             AppState.currentFile = file.name;
+            /* Never write markdown back over an .html source. */
+            AppState.fileHandle = handle && extension !== '.html' ? handle : null;
             AppState.setModified(false);
             this.updateFileNameDisplay();
             DOM.statusLeft.textContent = `Opened: ${file.name}`;
@@ -4472,8 +4517,66 @@ const FileOps = {
         reader.readAsText(file);
     },
     
+    /* Ctrl+S. Writes back to the opened file when we hold a handle; asks
+       where the first time; downloads where the API does not exist. */
     saveFile() {
-        this.exportAs('md');
+        if (AppState.fileHandle) {
+            return this.writeToHandle(AppState.fileHandle).then(ok => ok ? true : this.saveAs());
+        }
+        return this.saveAs();
+    },
+
+    /* Ctrl+Shift+S. Always asks where. */
+    saveAs() {
+        if (!this.hasFsAccess()) {
+            this.exportAs('md');
+            return Promise.resolve(true);
+        }
+        return window.showSaveFilePicker({ suggestedName: this.suggestedName(), types: this.SAVE_TYPES })
+            .then(handle => this.writeToHandle(handle).then(ok => {
+                if (ok) AppState.fileHandle = handle;
+                return ok;
+            }))
+            .catch(err => {
+                if (err && err.name === "AbortError") { Logger.info("File", "Save As cancelled"); return false; }
+                Logger.warn("File", "Save picker failed (" + (err && err.message) + "); downloading instead");
+                this.exportAs('md');
+                return true;
+            });
+    },
+
+    suggestedName() {
+        const base = AppState.currentFile ? AppState.currentFile.replace(/\.[^/.]+$/, '') : 'document';
+        return base + '.md';
+    },
+
+    async writeToHandle(handle) {
+        try {
+            if (typeof handle.queryPermission === "function") {
+                let p = await handle.queryPermission({ mode: "readwrite" });
+                if (p !== "granted" && typeof handle.requestPermission === "function") {
+                    p = await handle.requestPermission({ mode: "readwrite" });
+                }
+                if (p !== "granted") {
+                    Logger.warn("File", "Write permission not granted for " + handle.name);
+                    DOM.statusLeft.textContent = "Not saved: permission denied for " + handle.name;
+                    return false;
+                }
+            }
+            const writable = await handle.createWritable();
+            await writable.write(DOM.editor.value);
+            await writable.close();
+            AppState.currentFile = handle.name;
+            AppState.setModified(false);
+            this.updateFileNameDisplay();
+            DOM.statusLeft.textContent = "Saved: " + handle.name;
+            Logger.success("File", "Saved: " + handle.name);
+            return true;
+        } catch (err) {
+            Logger.error("File", "Save failed: " + (err && err.message));
+            DOM.statusLeft.textContent = "Save failed: " + (err && err.message);
+            return false;
+        }
     },
     
     exportAs(format) {
@@ -4907,6 +5010,7 @@ const DOM = {
     menuNew: document.getElementById('menuNew'),
     menuOpen: document.getElementById('menuOpen'),
     menuSave: document.getElementById('menuSave'),
+    menuSaveAs: document.getElementById('menuSaveAs'),
     menuDownloadEditor: document.getElementById('menuDownloadEditor'),
     downloadAppBtn: document.getElementById('downloadAppBtn'),
     exportMd: document.getElementById('exportMd'),
@@ -5041,6 +5145,10 @@ function setupEventListeners() {
     });
     DOM.menuSave.addEventListener('click', () => {
         FileOps.saveFile();
+        DOM.fileMenu.classList.remove('open');
+    });
+    DOM.menuSaveAs.addEventListener('click', () => {
+        FileOps.saveAs();
         DOM.fileMenu.classList.remove('open');
     });
     DOM.exportMd.addEventListener('click', () => {
@@ -5196,7 +5304,7 @@ function setupEventListeners() {
                     break;
                 case 's':
                     e.preventDefault();
-                    FileOps.saveFile();
+                    if (e.shiftKey) FileOps.saveAs(); else FileOps.saveFile();
                     break;
             }
         }

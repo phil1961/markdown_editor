@@ -14,6 +14,7 @@ const FileOps = {
         Doc.load('');
         DOM.preview.innerHTML = Doc.previewHTML();
         AppState.currentFile = null;
+        AppState.fileHandle = null;
         AppState.setModified(false);
         this.updateFileNameDisplay();
         EditorOps.updateStatus();
@@ -21,8 +22,36 @@ const FileOps = {
         Logger.info('File', 'Created new document');
     },
     
+    /* Chrome, Edge and Brave expose the File System Access API. With it,
+       Open returns a handle and Save writes back to that file. Elsewhere
+       (Firefox, Safari) Open uses the <input type=file> and Save downloads. */
+    hasFsAccess() {
+        return typeof window.showSaveFilePicker === "function"
+            && typeof window.showOpenFilePicker === "function";
+    },
+
+    OPEN_TYPES: [{
+        description: "Markdown, text or HTML",
+        accept: { "text/markdown": [".md", ".markdown"], "text/plain": [".txt"], "text/html": [".html"] }
+    }],
+    SAVE_TYPES: [{ description: "Markdown", accept: { "text/markdown": [".md", ".markdown"] } }],
+
     openFile() {
-        DOM.fileInput.click();
+        if (!this.hasFsAccess()) {
+            DOM.fileInput.click();
+            return;
+        }
+        window.showOpenFilePicker({ types: this.OPEN_TYPES, multiple: false })
+            .then(handles => {
+                const handle = handles && handles[0];
+                if (!handle) return;
+                return handle.getFile().then(file => this.loadFile(file, handle));
+            })
+            .catch(err => {
+                if (err && err.name === "AbortError") { Logger.info("File", "Open cancelled"); return; }
+                Logger.error("File", "Open picker failed: " + (err && err.message));
+                DOM.statusLeft.textContent = "Open failed: " + (err && err.message);
+            });
     },
     
     handleFileOpen(event) {
@@ -33,9 +62,9 @@ const FileOps = {
         event.target.value = '';
     },
     
-    loadFile(file) {
+    loadFile(file, handle) {
         // Validate file type
-        const validExtensions = ['.md', '.txt', '.html'];
+        const validExtensions = ['.md', '.markdown', '.txt', '.html'];
         const extension = '.' + file.name.split('.').pop().toLowerCase();
         
         if (!validExtensions.includes(extension)) {
@@ -56,6 +85,8 @@ const FileOps = {
             DOM.editor.value = content;
             EditorOps.updatePreviewNow();
             AppState.currentFile = file.name;
+            /* Never write markdown back over an .html source. */
+            AppState.fileHandle = handle && extension !== '.html' ? handle : null;
             AppState.setModified(false);
             this.updateFileNameDisplay();
             DOM.statusLeft.textContent = `Opened: ${file.name}`;
@@ -69,8 +100,66 @@ const FileOps = {
         reader.readAsText(file);
     },
     
+    /* Ctrl+S. Writes back to the opened file when we hold a handle; asks
+       where the first time; downloads where the API does not exist. */
     saveFile() {
-        this.exportAs('md');
+        if (AppState.fileHandle) {
+            return this.writeToHandle(AppState.fileHandle).then(ok => ok ? true : this.saveAs());
+        }
+        return this.saveAs();
+    },
+
+    /* Ctrl+Shift+S. Always asks where. */
+    saveAs() {
+        if (!this.hasFsAccess()) {
+            this.exportAs('md');
+            return Promise.resolve(true);
+        }
+        return window.showSaveFilePicker({ suggestedName: this.suggestedName(), types: this.SAVE_TYPES })
+            .then(handle => this.writeToHandle(handle).then(ok => {
+                if (ok) AppState.fileHandle = handle;
+                return ok;
+            }))
+            .catch(err => {
+                if (err && err.name === "AbortError") { Logger.info("File", "Save As cancelled"); return false; }
+                Logger.warn("File", "Save picker failed (" + (err && err.message) + "); downloading instead");
+                this.exportAs('md');
+                return true;
+            });
+    },
+
+    suggestedName() {
+        const base = AppState.currentFile ? AppState.currentFile.replace(/\.[^/.]+$/, '') : 'document';
+        return base + '.md';
+    },
+
+    async writeToHandle(handle) {
+        try {
+            if (typeof handle.queryPermission === "function") {
+                let p = await handle.queryPermission({ mode: "readwrite" });
+                if (p !== "granted" && typeof handle.requestPermission === "function") {
+                    p = await handle.requestPermission({ mode: "readwrite" });
+                }
+                if (p !== "granted") {
+                    Logger.warn("File", "Write permission not granted for " + handle.name);
+                    DOM.statusLeft.textContent = "Not saved: permission denied for " + handle.name;
+                    return false;
+                }
+            }
+            const writable = await handle.createWritable();
+            await writable.write(DOM.editor.value);
+            await writable.close();
+            AppState.currentFile = handle.name;
+            AppState.setModified(false);
+            this.updateFileNameDisplay();
+            DOM.statusLeft.textContent = "Saved: " + handle.name;
+            Logger.success("File", "Saved: " + handle.name);
+            return true;
+        } catch (err) {
+            Logger.error("File", "Save failed: " + (err && err.message));
+            DOM.statusLeft.textContent = "Save failed: " + (err && err.message);
+            return false;
+        }
     },
     
     exportAs(format) {

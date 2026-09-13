@@ -58,6 +58,10 @@ function setupEventListeners() {
         FileOps.saveFile();
         DOM.fileMenu.classList.remove('open');
     });
+    DOM.menuSaveAs.addEventListener('click', () => {
+        FileOps.saveAs();
+        DOM.fileMenu.classList.remove('open');
+    });
     DOM.exportMd.addEventListener('click', () => {
         FileOps.exportAs('md');
         DOM.fileMenu.classList.remove('open');
@@ -211,7 +215,7 @@ function setupEventListeners() {
                     break;
                 case 's':
                     e.preventDefault();
-                    FileOps.saveFile();
+                    if (e.shiftKey) FileOps.saveAs(); else FileOps.saveFile();
                     break;
             }
         }

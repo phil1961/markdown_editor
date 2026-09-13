@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.6",
+  version:  "1.3.7",
   released: "13 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -49,6 +49,10 @@ const BUILD = {
      "One undo stack for both panes. Ctrl+Z / Ctrl+Y (or the toolbar arrows) "
      + "step through typing, formatting, inserts, and table edits. The Undo/Redo "
      + "tooltips name the step. Ctrl+Shift+H opens a History panel that lists "
-     + "every snapshot with what changed; click a row to jump to it."]
+     + "every snapshot with what changed; click a row to jump to it."],
+    ["Ctrl+S only downloaded a copy; there was no way to write back to the file",
+     "In Chrome, Edge and Brave, Open gives the editor a handle to the file and "
+     + "Save (Ctrl+S) writes back to it. A new document asks where the first time. "
+     + "Save As (Ctrl+Shift+S) always asks. Other browsers still download."]
   ]
 };

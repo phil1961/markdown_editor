@@ -19,7 +19,8 @@ node build.js --check    # fail if the assembled file is stale
 - Formatting toolbar — bold, italic, underline, strikethrough, H1–H6, lists, nested quotes, code, images, links, tables, horizontal rules
 - View modes — Editor only, Preview only, or Both
 - Open via drag-and-drop, File menu, or Windows Explorer / the command line
-- Export — Download markdown, or Export As HTML / Plain Text
+- Save — writes back to the opened file in Chrome, Edge and Brave; Save As asks where; other browsers download
+- Export — Export As Markdown / HTML / Plain Text (always a download)
 - Undo/redo across both panes (Ctrl+Z / Ctrl+Y), with a History panel (Ctrl+Shift+H) that lists every step and what it changed
 
 ---
@@ -65,7 +66,8 @@ The launcher copies the editor under `%TEMP%` and injects the file. It does not 
 | `Ctrl+I` | Italic |
 | `Ctrl+U` | Underline |
 | `Ctrl+K` | Link |
-| `Ctrl+S` | Download markdown |
+| `Ctrl+S` | Save (back to the opened file, or ask where) |
+| `Ctrl+Shift+S` | Save As |
 | `Ctrl+O` | Open |
 | `Ctrl+N` | New |
 | `Ctrl+Z` | Undo |

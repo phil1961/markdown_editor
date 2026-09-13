@@ -246,10 +246,11 @@ const launchArgs = [
 
     G("File menu");
     await click("#fileMenuBtn");
-    const menu = await evalJs("({ open: document.getElementById('fileMenu').classList.contains('open'), save: (document.getElementById('menuSave')||{}).textContent })");
+    const menu = await evalJs("({ open: document.getElementById('fileMenu').classList.contains('open'), save: (document.getElementById('menuSave')||{}).textContent, saveAs: (document.getElementById('menuSaveAs')||{}).textContent })");
     ok(menu.open, "File menu opens from a pointer click");
-    ok(/Download/.test(menu.save || ""), "the save item is labelled Download, not Save", menu.save);
-    await shot("02-file-menu", "File menu open, Download not Save.");
+    ok(/Save/.test(menu.save || "") && !/Download/.test(menu.save || ""), "the save item is labelled Save", menu.save);
+    ok(/Save As/.test(menu.saveAs || "") && /Ctrl\+Shift\+S/.test(menu.saveAs || ""), "there is a Save As item with Ctrl+Shift+S", menu.saveAs);
+    await shot("02-file-menu", "File menu open: Save, Save As, Export As.");
     await evalJs("document.getElementById('fileMenu').classList.remove('open'); true");
 
     G("View → Preview hides the editor pane");
@@ -895,6 +896,84 @@ const launchArgs = [
     await click("#historyClose");
     const panelClosed = await evalJs("document.getElementById('historyPanel').classList.contains('visible')");
     ok(!panelClosed, "the close button hides the panel");
+
+    G("QC: Save writes back to the opened file, Save As asks where");
+    await evalJs(`(() => {
+      window.__saves = []; window.__pickers = []; window.__downloads = [];
+      const mk = name => ({ name, kind: "file",
+        getFile: async () => new File(["# Opened"], name, { type: "text/markdown" }),
+        queryPermission: async () => "granted",
+        createWritable: async () => ({ write: async text => { window.__saves.push({ name, text }); }, close: async () => {} }) });
+      window.showOpenFilePicker = async () => [mk("opened.md")];
+      window.showSaveFilePicker = async opts => { window.__pickers.push(opts && opts.suggestedName); return mk((opts && opts.suggestedName) || "x.md"); };
+      window.__origAnchorClick = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () { if (this.download) window.__downloads.push(this.download); else window.__origAnchorClick.call(this); };
+      History.togglePanel(false);
+      document.getElementById("editor").value = "# Save me";
+      EditorOps.updatePreviewNow();
+      AppState.currentFile = null; AppState.fileHandle = null; AppState.setModified(true);
+      AppState.activePane = "editor"; document.getElementById("editor").focus();
+    })()`);
+    const saveState = () => evalJs(`({
+      saves: window.__saves, pickers: window.__pickers, downloads: window.__downloads,
+      file: AppState.currentFile, handle: !!AppState.fileHandle, modified: AppState.isModified,
+      dot: getComputedStyle(document.getElementById("unsavedIndicator")).display,
+      status: document.getElementById("statusLeft").textContent,
+      name: document.getElementById("fileNameDisplay").textContent
+    })`);
+    const tick = () => evalJs("new Promise(r => setTimeout(r, 120))");
+
+    await ctrlKey("s", "KeyS", 83, false);
+    await tick();
+    let sv = await saveState();
+    ok(sv.pickers.length === 1 && sv.pickers[0] === "document.md", "first Ctrl+S on a new document asks where, suggesting document.md", JSON.stringify(sv.pickers));
+    ok(sv.saves.length === 1 && sv.saves[0].text === "# Save me", "the markdown is written to the chosen file", JSON.stringify(sv.saves));
+    ok(sv.file === "document.md" && sv.handle && sv.name === "document.md", "the editor now tracks that file", JSON.stringify(sv));
+    ok(!sv.modified && sv.dot === "none" && /^Saved: document\.md/.test(sv.status), "unsaved dot clears and the status says Saved", JSON.stringify(sv));
+
+    await click("#editor");
+    await evalJs("(() => { const ed = document.getElementById('editor'); ed.setSelectionRange(ed.value.length, ed.value.length); })()");
+    await cdp.send("Input.insertText", { text: " again" }, S);
+    await frames();
+    sv = await saveState();
+    ok(sv.modified, "typing marks the document modified again");
+    await ctrlKey("s", "KeyS", 83, false);
+    await tick();
+    sv = await saveState();
+    ok(sv.pickers.length === 1, "second Ctrl+S does not ask again", JSON.stringify(sv.pickers));
+    ok(sv.saves.length === 2 && sv.saves[1].text === "# Save me again" && sv.saves[1].name === "document.md", "it writes back to the same file", JSON.stringify(sv.saves));
+    ok(!sv.modified, "and clears the unsaved dot");
+
+    await ctrlKey("s", "KeyS", 83, true);
+    await tick();
+    sv = await saveState();
+    ok(sv.pickers.length === 2 && sv.pickers[1] === "document.md", "Ctrl+Shift+S always asks where", JSON.stringify(sv.pickers));
+    ok(sv.saves.length === 3, "and writes the file", JSON.stringify(sv.saves.length));
+
+    await click("#fileMenuBtn");
+    await click("#menuSaveAs");
+    await tick();
+    sv = await saveState();
+    ok(sv.pickers.length === 3, "File → Save As asks where", JSON.stringify(sv.pickers));
+    await click("#fileMenuBtn");
+    await click("#menuSave");
+    await tick();
+    sv = await saveState();
+    ok(sv.pickers.length === 3 && sv.saves.length === 5, "File → Save writes without asking", JSON.stringify({ p: sv.pickers.length, s: sv.saves.length }));
+
+    await click("#fileMenuBtn");
+    await click("#menuOpen");
+    await tick();
+    sv = await saveState();
+    ok(sv.file === "opened.md" && sv.handle, "Open through the picker keeps a handle to the file", JSON.stringify(sv));
+
+    await evalJs("(() => { window.showSaveFilePicker = undefined; window.showOpenFilePicker = undefined; AppState.fileHandle = null; AppState.setModified(true); })()");
+    await ctrlKey("s", "KeyS", 83, false);
+    await tick();
+    sv = await saveState();
+    ok(sv.downloads.length === 1 && sv.downloads[0] === "opened.md", "without the File System Access API, Ctrl+S downloads instead", JSON.stringify(sv.downloads));
+    ok(!sv.modified && /^Downloaded: opened\.md/.test(sv.status), "the download still clears the unsaved dot", sv.status);
+    await evalJs("(() => { HTMLAnchorElement.prototype.click = window.__origAnchorClick; })()");
 
     G("QC: Explorer launcher payload loads the file");
     const launched = await evalJs("(() => { const bytes = new TextEncoder().encode('# From Explorer\\n\\nhello from the launcher\\n'); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); window.MD_PAYLOAD = { b64: btoa(bin), filename: 'md-editor-launch-fixture.md' }; const okp = loadFromPayload(); return { okp, raw: document.getElementById('editor').value, h: (document.querySelector('#preview h1')||{}).textContent, name: document.getElementById('fileNameDisplay').textContent }; })()");

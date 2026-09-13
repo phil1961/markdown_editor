@@ -3,6 +3,7 @@
 // ============================================================================
 const AppState = {
     currentFile: null,
+    fileHandle: null,
     isModified: false,
     activePane: 'editor',
     viewMode: 'both', // 'editor', 'preview', or 'both'

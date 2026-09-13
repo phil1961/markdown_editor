@@ -104,6 +104,15 @@ column left/right, delete column. Icons are disabled outside a table.
 The demo header **Download editor** (also File → Download this editor) saves
 `markdown-editor.html` so someone can open it from disk with no server.
 
+Save (`FileOps.saveFile`): with the File System Access API (Chrome, Edge, Brave)
+Open uses `showOpenFilePicker` and keeps the handle in `AppState.fileHandle`;
+Ctrl+S writes back through `createWritable`, asking for readwrite permission
+once. No handle (new document, drag-and-drop, `<input type=file>`, the Explorer
+launcher payload) means Ctrl+S behaves as Save As, which always shows
+`showSaveFilePicker`. Without the API both fall back to `exportAs('md')`, the
+download. An `.html` source never gets a handle, so markdown is never written
+over it. Export As is always a download.
+
 Undo/redo (`src/35-history.js`): one stack for both panes, snapshots are the
 markdown plus the caret. Every mutation path records a labelled entry:
 `History.schedule(label)` for typing (coalesces on 350 ms idle) and
