@@ -487,6 +487,36 @@ G("Doc model — table row and column edits");
     ok(/\|/.test(md), "table still serializes as pipes", md);
 }
 
+G("Doc model — Enter on an empty list item leaves the list, at the top level and inside a quote");
+{
+    Doc.load("> - a\n> - b");
+    Doc.setSelection(3, 3);
+    Doc.splitBlock();
+    ok(Doc.get().blocks[0].type === "quote" && Doc.get().blocks[0].blocks[0].items.length === 3,
+        "Enter at the end of the last quoted item adds an empty item", JSON.stringify(Doc.get().blocks[0]));
+    ok(Doc.selection().from === 4, "caret is in the empty item", JSON.stringify(Doc.selection()));
+    Doc.splitBlock();
+    const q = Doc.get().blocks[0];
+    ok(q.type === "quote" && q.blocks.length === 2 && q.blocks[0].items && q.blocks[1].type === "p",
+        "the empty item becomes a paragraph after the list, still inside the quote", JSON.stringify(q));
+    ok(q.blocks[0].items.length === 2, "the list keeps its two items", JSON.stringify(q));
+    ok(Doc.selection().from === 4, "caret lands in that paragraph", JSON.stringify(Doc.selection()));
+    Doc.insertText("x");
+    ok(Doc.toMarkdown() === "> - a\n> - b\n>\n> x", "typing goes into the paragraph inside the quote", JSON.stringify(Doc.toMarkdown()));
+}
+
+{
+    Doc.load("- a\n- b\n- c");
+    Doc.setSelection(2, 2);
+    Doc.splitBlock();
+    Doc.setSelection(2, 2);
+    Doc.splitBlock();
+    const types = Doc.get().blocks.map(b => b.type);
+    ok(types[0] === "ul" && types[1] === "p" && types[2] === "ul",
+        "Enter on an empty top-level item splits the list around a paragraph", types.join(","));
+    ok(Doc.selection().from === 2, "caret lands in that paragraph", JSON.stringify(Doc.selection()));
+}
+
 G("Parser terminates on pipe-led lines");
 {
     const t0 = Date.now();

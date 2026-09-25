@@ -353,69 +353,6 @@ const IconHighlighter = {
         BlockStyleOps.reflect(Doc.codeLangAt(), Doc.alertAt());
     },
 
-    markFormatsFrom(node) {
-        while (node && node !== DOM.preview) {
-            if (node.nodeType === Node.ELEMENT_NODE) this.markElement(node);
-            node = node.parentNode;
-        }
-    },
-
-    markElement(el) {
-        switch (el.tagName.toLowerCase()) {
-            case 'strong':
-            case 'b':
-                DOM.boldBtn.classList.add('active');
-                break;
-            case 'em':
-            case 'i':
-                DOM.italicBtn.classList.add('active');
-                break;
-            case 'u':
-                DOM.underlineBtn.classList.add('active');
-                break;
-            case 'del':
-            case 's':
-                DOM.strikeBtn.classList.add('active');
-                break;
-            case 'code':
-                DOM.codeBtn.classList.add('active');
-                break;
-            case 'h1':
-                DOM.h1Btn.classList.add('active');
-                break;
-            case 'h2':
-                DOM.h2Btn.classList.add('active');
-                break;
-            case 'h3':
-                DOM.h3Btn.classList.add('active');
-                break;
-            case 'h4':
-                DOM.h4Btn.classList.add('active');
-                break;
-            case 'h5':
-                DOM.h5Btn.classList.add('active');
-                break;
-            case 'h6':
-                DOM.h6Btn.classList.add('active');
-                break;
-            case 'li': {
-                const parent = el.parentElement;
-                if (parent && parent.tagName === 'UL') DOM.bulletBtn.classList.add('active');
-                if (parent && parent.tagName === 'OL') DOM.numberBtn.classList.add('active');
-                break;
-            }
-            case 'blockquote':
-                DOM.quoteIncreaseBtn.classList.add('active');
-                break;
-            case 'a':
-                DOM.linkBtn.classList.add('active');
-                break;
-            case 'img':
-                DOM.imageBtn.classList.add('active');
-                break;
-        }
-    },
-    
     /**
      * Check if text is wrapped by a marker
      */

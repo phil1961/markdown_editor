@@ -4,15 +4,7 @@
 const Doc = (() => {
     const MARK_TAG = { bold: "strong", italic: "em", underline: "u", strike: "del", code: "code" };
     const TAG_MARK = { strong: "bold", b: "bold", em: "italic", i: "italic", u: "underline", del: "strike", s: "strike", code: "code" };
-    const MARK_WRAP = [
-        { mark: "code", open: "`", close: "`" },
-        { mark: "strike", open: "~~", close: "~~" },
-        { mark: "underline", open: "++", close: "++" },
-        { mark: "italic", open: "*", close: "*" },
-        { mark: "bold", open: "**", close: "**" }
-    ];
-    const BLOCKS = ["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "quote", "pre", "hr", "table"];
-    /* GitHub callouts: "> [!NOTE]" alone on the first quoted line. */
+/* GitHub callouts: "> [!NOTE]" alone on the first quoted line. */
     const ALERTS = ["note", "tip", "important", "warning", "caution"];
     const ALERT_LINE = /^\s*\[!(note|tip|important|warning|caution)\]\s*$/i;
 
@@ -59,10 +51,12 @@ const Doc = (() => {
         return inlinesText(b.inlines);
     }
 
-    function index(doc) {
-        const blocks = doc.blocks;
-        let pos = 0;
-        return blocks.map((b, i) => {
+    /* Offsets of each block in a list that starts at startPos:
+       { from, to, text, i, type }. Blocks are joined by one "\n"; an hr
+       counts as one character. index(doc) is the top level. */
+    function indexFrom(blocks, startPos) {
+        let pos = startPos || 0;
+        return (blocks || []).map((b, i) => {
             const text = b.type === "hr" ? "\n" : blockText(b);
             const from = pos;
             const to = pos + text.length;
@@ -70,6 +64,7 @@ const Doc = (() => {
             return { from, to, text, i, type: b.type };
         });
     }
+    function index(doc) { return indexFrom(doc.blocks, 0); }
     function totalLen(doc) {
         const ix = index(doc);
         if (!ix.length) return 0;
@@ -681,15 +676,7 @@ const Doc = (() => {
     }
 
     function blocksOverlapping(from, to) {
-        const ix = index(state);
-        const out = [];
-        for (const b of ix) {
-            if (to < b.from || from > b.to) continue;
-            if (from === to && from === b.from && b.i > 0 && from === ix[b.i - 1].to + 1) continue;
-            out.push(b);
-        }
-        if (!out.length && ix.length) out.push(ix[locAt(state, from).block] || ix[0]);
-        return out;
+        return overlappingIn(state.blocks, from, to, 0);
     }
 
     function convertBlockToPIn(blocks, i) {
@@ -892,19 +879,12 @@ const Doc = (() => {
         });
     }
 
-    function indexOf(blocks, startPos) {
-        let pos = startPos || 0;
-        return (blocks || []).map((b, i) => {
-            const text = b.type === "hr" ? "\n" : blockText(b);
-            const from = pos;
-            const to = pos + text.length;
-            pos = to + (i < blocks.length - 1 ? 1 : 0);
-            return { from, to, text, i, type: b.type };
-        });
-    }
-
+    /* Blocks of a list (starting at startPos) that a range touches. A
+       collapsed caret at the very start of a block, right after the
+       separator, is not counted as touching it. When nothing overlaps, the
+       block the caret is in. */
     function overlappingIn(blocks, from, to, startPos) {
-        const ix = indexOf(blocks, startPos);
+        const ix = indexFrom(blocks, startPos);
         const out = [];
         for (const b of ix) {
             if (to < b.from || from > b.to) continue;
@@ -985,22 +965,7 @@ const Doc = (() => {
         ensureTrail();
     }
 
-    function runAt(pos) {
-        const loc = locAt(state, pos);
-        const block = state.blocks[loc.block];
-        if (!block || !block.inlines) return null;
-        let o = 0;
-        for (const r of block.inlines) {
-            const n = (r.text || "").length;
-            if (pos - index(state)[loc.block].from < o + n || o + n === blockText(block).length) {
-                if (index(state)[loc.block].from + o + n >= pos) return r;
-            }
-            o += n;
-        }
-        return block.inlines[block.inlines.length - 1] || null;
-    }
-
-    function marksAt(from, to) {
+function marksAt(from, to) {
         from = from === undefined ? sel.from : from;
         to = to === undefined ? sel.to : to;
         if (from !== to) {
@@ -1271,18 +1236,21 @@ const Doc = (() => {
         setSelection(last ? last.to : totalLen(state));
     }
 
-    function exitListAt(blockIndex, itemIndex) {
-        const block = state.blocks[blockIndex];
+    /* Enter on an empty item: that item becomes an empty paragraph between
+       the two halves of the list. blocks is the list's container, at the
+       top level or inside a quote; the caret lands in the new paragraph. */
+    function exitListAt(blocks, i, itemIndex) {
+        const block = blocks[i];
         const before = block.items.slice(0, itemIndex);
         const after = block.items.slice(itemIndex + 1);
+        const para = { type: "p", inlines: [] };
         const replacement = [];
         if (before.length) replacement.push({ type: block.type, items: before });
-        replacement.push({ type: "p", inlines: [] });
+        replacement.push(para);
         if (after.length) replacement.push({ type: block.type, items: after });
-        state.blocks.splice(blockIndex, 1, ...replacement);
-        const paraI = blockIndex + (before.length ? 1 : 0);
-        const at = index(state)[paraI].from;
-        setSelection(at, at);
+        blocks.splice(i, 1, ...replacement);
+        const at = blockStart(para);
+        setSelection(at < 0 ? 0 : at);
     }
 
     function splitBlock() {
@@ -1304,18 +1272,7 @@ const Doc = (() => {
         if (block.items) {
             const it = itemAt(block, c.offset);
             if (!inlinesText(block.items[it.item])) {
-                if (c.blocks === state.blocks) {
-                    exitListAt(c.i, it.item);
-                } else {
-                    const before = block.items.slice(0, it.item);
-                    const after = block.items.slice(it.item + 1);
-                    const replacement = [];
-                    if (before.length) replacement.push({ type: block.type, items: before });
-                    replacement.push({ type: "p", inlines: [] });
-                    if (after.length) replacement.push({ type: block.type, items: after });
-                    c.blocks.splice(c.i, 1, ...replacement);
-                    setSelection(from, from);
-                }
+                exitListAt(c.blocks, c.i, it.item);
                 return;
             }
             const { left, right } = splitInlinesAt(block.items[it.item], it.offset);
