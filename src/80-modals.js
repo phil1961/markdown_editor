@@ -243,8 +243,21 @@ const HelpOps = {
         return !!DOM.helpPanel && DOM.helpPanel.classList.contains('active');
     },
 
+    /* BUILD.corrections as a "What changed" section, newest first, placed
+       before the AI section so that one stays last as the guide promises.
+       The changelog that ships inside the file is then readable inside the
+       editor instead of being dead payload. */
+    helpMarkdown() {
+        const rows = (BUILD.corrections || []).slice().reverse()
+            .map(([was, now]) => '- **' + was + '.** ' + now);
+        const section = '## What changed\n\nNewest first. Version ' + BUILD.version + ', ' + BUILD.released + '.\n\n'
+            + rows.join('\n') + '\n\n';
+        const cut = HELP_MD.indexOf('\n## For an AI');
+        return cut < 0 ? HELP_MD + '\n\n' + section : HELP_MD.slice(0, cut + 1) + section + HELP_MD.slice(cut + 1);
+    },
+
     render() {
-        DOM.helpBody.innerHTML = Doc.html(Doc.parse(HELP_MD));
+        DOM.helpBody.innerHTML = Doc.html(Doc.parse(this.helpMarkdown()));
         /* Export HTML carries a title element; here the shared ::before draws it. */
         DOM.helpBody.querySelectorAll('.markdown-alert-title').forEach(el => el.remove());
         DOM.helpBody.querySelectorAll('a[href]').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });

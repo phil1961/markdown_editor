@@ -75,6 +75,13 @@ const ok = (cond, label, detail) => {
   else { fail++; console.log("  FAIL  " + label + (detail ? "\n          " + detail : "")); }
 };
 
+/* The newest BUILD.corrections title, read from the page's own source so the
+   Help check does not go stale when a correction is added. */
+const BUILD_CORRECTION_NEWEST = (() => {
+  const m = /corrections:\s*\[([\s\S]*?)\n  \]/.exec(fs.readFileSync(HTML, "utf8"));
+  const titles = m ? [...m[1].matchAll(/^\s*\["((?:[^"\\]|\\.)*)"/gm)].map(x => x[1]) : [];
+  return titles.length ? titles[titles.length - 1] + "." : null;
+})();
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "md-editor-browser-profile-"));
 fs.mkdirSync(OUT, { recursive: true });
 const launchArgs = [
@@ -1006,6 +1013,14 @@ const launchArgs = [
     ok(shielded.md === "keep me", "Ctrl+B in the link modal does not bold the document", JSON.stringify(shielded));
     ok(shielded.open && shielded.focus === "linkText", "the modal stays open with its field focused", JSON.stringify(shielded));
     await evalJs("ModalOps.closeLinkModal(); true");
+
+    G("QC: Help lists what changed, from BUILD.corrections");
+    await evalJs("HelpOps.open(); true");
+    const changed = await evalJs("(() => { const hs = [...document.querySelectorAll('#helpBody h2')].map(h => h.textContent); const i = hs.indexOf('What changed'); const sec = document.getElementById('help-section-' + i); let n = 0, el = sec && sec.nextElementSibling; while (el && el.tagName !== 'H2') { if (el.tagName === 'UL') n += el.querySelectorAll('li').length; el = el.nextElementSibling; } return { i, last: hs[hs.length - 1], items: n, expected: BUILD.corrections.length, first: sec && sec.nextElementSibling && sec.nextElementSibling.nextElementSibling && sec.nextElementSibling.nextElementSibling.querySelector('li strong') && sec.nextElementSibling.nextElementSibling.querySelector('li strong').textContent }; })()");
+    ok(changed.i >= 0 && changed.items === changed.expected, "a What changed section lists every correction", JSON.stringify(changed));
+    ok(/^For an AI/.test(changed.last || ""), "the AI section is still last", JSON.stringify(changed));
+    ok(changed.first === BUILD_CORRECTION_NEWEST, "the newest correction comes first", JSON.stringify(changed));
+    await evalJs("HelpOps.close(); true");
 
     G("QC: Explorer launcher payload loads the file");
     const launched = await evalJs("(() => { const bytes = new TextEncoder().encode('# From Explorer\\n\\nhello from the launcher\\n'); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); window.MD_PAYLOAD = { b64: btoa(bin), filename: 'md-editor-launch-fixture.md' }; const okp = loadFromPayload(); return { okp, raw: document.getElementById('editor').value, h: (document.querySelector('#preview h1')||{}).textContent, name: document.getElementById('fileNameDisplay').textContent }; })()");
