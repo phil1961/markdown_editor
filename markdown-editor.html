@@ -6577,7 +6577,10 @@ function setupEventListeners() {
                 return;
             }
         }
-        if (e.ctrlKey || e.metaKey) {
+        /* A modal field owns Ctrl+B/I/U/K/N/O/S as much as it owns Ctrl+Z
+           above: Bold in the link dialog must not format the document
+           behind it. */
+        if ((e.ctrlKey || e.metaKey) && !inModalField) {
             switch (e.key.toLowerCase()) {
                 case 'n':
                     e.preventDefault();

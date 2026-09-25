@@ -997,6 +997,16 @@ const launchArgs = [
     ok(/^# Up\n\ncase/.test(upper.md), "an upper-case .HTML file is converted to markdown on open", JSON.stringify(upper));
     ok(upper.handle === null && upper.name === "NOTES.HTML", "and never gets a write-back handle", JSON.stringify(upper));
 
+    G("QC: editor shortcuts stay off inside a modal field");
+    await evalJs("(() => { const ed = document.getElementById('editor'); ed.focus(); AppState.activePane = 'editor'; ed.value = 'keep me'; ed.setSelectionRange(0, 4); })()");
+    await click("#linkBtn");
+    await evalJs("document.getElementById('linkText').focus(); true");
+    await ctrlKey("b", "KeyB", 66, false);
+    const shielded = await evalJs("({ md: document.getElementById('editor').value, open: document.getElementById('linkModal').classList.contains('active'), focus: document.activeElement && document.activeElement.id })");
+    ok(shielded.md === "keep me", "Ctrl+B in the link modal does not bold the document", JSON.stringify(shielded));
+    ok(shielded.open && shielded.focus === "linkText", "the modal stays open with its field focused", JSON.stringify(shielded));
+    await evalJs("ModalOps.closeLinkModal(); true");
+
     G("QC: Explorer launcher payload loads the file");
     const launched = await evalJs("(() => { const bytes = new TextEncoder().encode('# From Explorer\\n\\nhello from the launcher\\n'); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); window.MD_PAYLOAD = { b64: btoa(bin), filename: 'md-editor-launch-fixture.md' }; const okp = loadFromPayload(); return { okp, raw: document.getElementById('editor').value, h: (document.querySelector('#preview h1')||{}).textContent, name: document.getElementById('fileNameDisplay').textContent }; })()");
     ok(launched.okp === true, "loadFromPayload returns true");
