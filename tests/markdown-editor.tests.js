@@ -487,6 +487,28 @@ G("Doc model — table row and column edits");
     ok(/\|/.test(md), "table still serializes as pipes", md);
 }
 
+G("Parser terminates on pipe-led lines");
+{
+    const t0 = Date.now();
+    for (const md of ["| A | B |", "hello\n|", "| a |\n| b |", "|", "x\n|\n\n| h |\n| --- |\n| c |"]) {
+        const html = MarkdownParser.parse(md);
+        ok(typeof html === "string", "parses without hanging: " + JSON.stringify(md), html);
+    }
+    ok(Date.now() - t0 < 2000, "pipe-led lines parse in well under two seconds");
+    const header = MarkdownParser.parse("| A | B |");
+    ok(/<p>\| A \| B \|<\/p>/.test(header), "a header row with no separator line is a paragraph", header);
+    ok(/<table>/.test(MarkdownParser.parse("| h |\n| --- |\n| c |")), "a real table still parses");
+}
+
+G("Inline delimiters hug their text");
+{
+    const math = MarkdownParser.parse("2 * 3 * 4");
+    ok(!/<em>/.test(math), "asterisks with spaces inside are not italics", math);
+    ok(/<em>yes<\/em>/.test(MarkdownParser.parse("*yes*")), "*yes* is still italic");
+    ok(/<strong>a<\/strong>/.test(MarkdownParser.parse("**a**")), "**a** is still bold");
+    ok(/<code> x <\/code>/.test(MarkdownParser.parse("` x `")), "a code span keeps its inner spaces", MarkdownParser.parse("` x `"));
+}
+
 G("Explorer launcher writes under TEMP, not the repo");
 {
     const win = process.platform === "win32";

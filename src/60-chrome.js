@@ -420,11 +420,13 @@ const IconHighlighter = {
      * Check if text is wrapped by a marker
      */
     isWrappedBy(before, after, marker) {
-        const len = marker.length;
-        // Check if marker appears before cursor and after cursor
+        /* Only the caret's line counts. On the last line "after" has no
+           newline, so cut at the line end instead of comparing indexes
+           (indexOf('\n') is -1 there and nothing is ever less than -1). */
+        const nl = after.indexOf('\n');
+        const lineAfter = nl < 0 ? after : after.slice(0, nl);
         const beforeHas = before.lastIndexOf(marker) > before.lastIndexOf('\n');
-        const afterHas = after.indexOf(marker) !== -1 && after.indexOf(marker) < after.indexOf('\n');
-        return beforeHas && afterHas;
+        return beforeHas && lineAfter.indexOf(marker) !== -1;
     },
     
     /**

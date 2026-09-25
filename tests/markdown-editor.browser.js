@@ -975,6 +975,15 @@ const launchArgs = [
     ok(!sv.modified && /^Downloaded: opened\.md/.test(sv.status), "the download still clears the unsaved dot", sv.status);
     await evalJs("(() => { HTMLAnchorElement.prototype.click = window.__origAnchorClick; })()");
 
+    G("QC: raw-pane toolbar lights on the last line");
+    await evalJs("(() => { const ed = document.getElementById('editor'); ed.focus(); AppState.activePane = 'editor'; ed.value = 'plain\\n**bold** and *it*'; ed.setSelectionRange(9, 9); ed.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true })); })()");
+    const lastLine = await evalJs("({ bold: document.getElementById('boldBtn').classList.contains('active'), italic: document.getElementById('italicBtn').classList.contains('active') })");
+    ok(lastLine.bold === true, "Bold lights with the caret inside **bold** on the last line", JSON.stringify(lastLine));
+    ok(lastLine.italic === false, "Italic does not light inside **bold**", JSON.stringify(lastLine));
+    await evalJs("(() => { const ed = document.getElementById('editor'); ed.setSelectionRange(21, 21); ed.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true })); })()");
+    const lastItalic = await evalJs("document.getElementById('italicBtn').classList.contains('active')");
+    ok(lastItalic === true, "Italic lights with the caret inside *it* on the last line");
+
     G("QC: Explorer launcher payload loads the file");
     const launched = await evalJs("(() => { const bytes = new TextEncoder().encode('# From Explorer\\n\\nhello from the launcher\\n'); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); window.MD_PAYLOAD = { b64: btoa(bin), filename: 'md-editor-launch-fixture.md' }; const okp = loadFromPayload(); return { okp, raw: document.getElementById('editor').value, h: (document.querySelector('#preview h1')||{}).textContent, name: document.getElementById('fileNameDisplay').textContent }; })()");
     ok(launched.okp === true, "loadFromPayload returns true");

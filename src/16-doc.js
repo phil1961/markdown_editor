@@ -242,6 +242,9 @@ const Doc = (() => {
             const from = i + open.length;
             const j = s.indexOf(close, from);
             if (j < 0 || j === from) return false;
+            /* Delimiters hug their text: "2 * 3 * 4" is arithmetic, not
+               italics. Code spans keep their inner spaces. */
+            if (mark !== "code" && (/\s/.test(s[from]) || /\s/.test(s[j - 1]))) return false;
             flush();
             const next = new Set(marks);
             next.add(mark);
@@ -401,7 +404,11 @@ const Doc = (() => {
                 i = got.i;
                 continue;
             }
-            const para = [];
+            /* No block rule above took this line, so it is paragraph text
+               even when it starts with a pipe (a table header typed before
+               its separator line). Consume it unconditionally: a paragraph
+               that does not advance i is an infinite loop. */
+            const para = [lines[i++]];
             while (i < lines.length && lines[i].trim() !== ""
                 && !/^(#{1,6}\s|\x00FENCE|>\s?|[-*+]\s|\d+\.\s|\|)/.test(lines[i])
                 && !/^(-{3,}|\*{3,}|_{3,})$/.test(lines[i].trim())) {

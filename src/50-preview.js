@@ -47,14 +47,20 @@ const PreviewOps = {
     runOp(op) {
         if (this._opLock) return;
         this._opLock = true;
-        Doc.readPreviewSelection(DOM.preview);
-        if (op === "split") Doc.splitBlock();
-        else if (op === "back") Doc.deleteBackward();
-        else if (op === "fwd") Doc.deleteForward();
-        syncFromDoc("preview");
-        if (op === "split") History.commit("New line");
-        else History.schedule("Delete");
-        queueMicrotask(() => { this._opLock = false; });
+        try {
+            Doc.readPreviewSelection(DOM.preview);
+            if (op === "split") Doc.splitBlock();
+            else if (op === "back") Doc.deleteBackward();
+            else if (op === "fwd") Doc.deleteForward();
+            syncFromDoc("preview");
+            if (op === "split") History.commit("New line");
+            else History.schedule("Delete");
+        } finally {
+            /* Release after the rest of this task (keydown and beforeinput
+               both arrive for one key) and even when an op throws; a stuck
+               lock would leave Enter and Backspace dead in the preview. */
+            queueMicrotask(() => { this._opLock = false; });
+        }
     },
 
     onKeyDown(e) {

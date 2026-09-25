@@ -1,8 +1,8 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.5.0",
-  released: "14 September 2026",
+  version:  "1.5.1",
+  released: "25 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
     ["Raw and preview were two live copies of the note",
@@ -70,6 +70,11 @@ const BUILD = {
     ["There was no help, and nothing explained how to rebuild the editor from the file alone",
      "Help (F1, the Help button, or File, Help) opens a guide inside the editor, and Download help (.md) "
      + "saves it. Its last section tells an AI how to unpack this .html into source, rebuild it, and check "
-     + "it in a headless browser."]
+     + "it in a headless browser."],
+    ["Typing the first line of a table in the raw pane froze the editor",
+     "A line that starts with | is a paragraph until its separator line arrives. Also: single asterisks "
+     + "with a space inside (2 * 3 * 4) are no longer italics, Bold and the other inline buttons light up "
+     + "on the last line of the raw pane, and an error while editing the preview no longer leaves Enter "
+     + "and Backspace dead."]
   ]
 };

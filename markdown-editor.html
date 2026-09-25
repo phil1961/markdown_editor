@@ -1642,9 +1642,9 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.5.0",
-  released: "14 September 2026",
-  compiled: "151316Z SEP 26",
+  version:  "1.5.1",
+  released: "25 September 2026",
+  compiled: "252123Z SEP 26",
   corrections: [
     ["Raw and preview were two live copies of the note",
      "A document model is now the source of truth. Both panes are views. "
@@ -1711,7 +1711,12 @@ const BUILD = {
     ["There was no help, and nothing explained how to rebuild the editor from the file alone",
      "Help (F1, the Help button, or File, Help) opens a guide inside the editor, and Download help (.md) "
      + "saves it. Its last section tells an AI how to unpack this .html into source, rebuild it, and check "
-     + "it in a headless browser."]
+     + "it in a headless browser."],
+    ["Typing the first line of a table in the raw pane froze the editor",
+     "A line that starts with | is a paragraph until its separator line arrives. Also: single asterisks "
+     + "with a space inside (2 * 3 * 4) are no longer italics, Bold and the other inline buttons light up "
+     + "on the last line of the raw pane, and an error while editing the preview no longer leaves Enter "
+     + "and Backspace dead."]
   ]
 };
 
@@ -2321,6 +2326,9 @@ const Doc = (() => {
             const from = i + open.length;
             const j = s.indexOf(close, from);
             if (j < 0 || j === from) return false;
+            /* Delimiters hug their text: "2 * 3 * 4" is arithmetic, not
+               italics. Code spans keep their inner spaces. */
+            if (mark !== "code" && (/\s/.test(s[from]) || /\s/.test(s[j - 1]))) return false;
             flush();
             const next = new Set(marks);
             next.add(mark);
@@ -2480,7 +2488,11 @@ const Doc = (() => {
                 i = got.i;
                 continue;
             }
-            const para = [];
+            /* No block rule above took this line, so it is paragraph text
+               even when it starts with a pipe (a table header typed before
+               its separator line). Consume it unconditionally: a paragraph
+               that does not advance i is an infinite loop. */
+            const para = [lines[i++]];
             while (i < lines.length && lines[i].trim() !== ""
                 && !/^(#{1,6}\s|\x00FENCE|>\s?|[-*+]\s|\d+\.\s|\|)/.test(lines[i])
                 && !/^(-{3,}|\*{3,}|_{3,})$/.test(lines[i].trim())) {
@@ -4843,14 +4855,20 @@ const PreviewOps = {
     runOp(op) {
         if (this._opLock) return;
         this._opLock = true;
-        Doc.readPreviewSelection(DOM.preview);
-        if (op === "split") Doc.splitBlock();
-        else if (op === "back") Doc.deleteBackward();
-        else if (op === "fwd") Doc.deleteForward();
-        syncFromDoc("preview");
-        if (op === "split") History.commit("New line");
-        else History.schedule("Delete");
-        queueMicrotask(() => { this._opLock = false; });
+        try {
+            Doc.readPreviewSelection(DOM.preview);
+            if (op === "split") Doc.splitBlock();
+            else if (op === "back") Doc.deleteBackward();
+            else if (op === "fwd") Doc.deleteForward();
+            syncFromDoc("preview");
+            if (op === "split") History.commit("New line");
+            else History.schedule("Delete");
+        } finally {
+            /* Release after the rest of this task (keydown and beforeinput
+               both arrive for one key) and even when an op throws; a stuck
+               lock would leave Enter and Backspace dead in the preview. */
+            queueMicrotask(() => { this._opLock = false; });
+        }
     },
 
     onKeyDown(e) {
@@ -5353,11 +5371,13 @@ const IconHighlighter = {
      * Check if text is wrapped by a marker
      */
     isWrappedBy(before, after, marker) {
-        const len = marker.length;
-        // Check if marker appears before cursor and after cursor
+        /* Only the caret's line counts. On the last line "after" has no
+           newline, so cut at the line end instead of comparing indexes
+           (indexOf('\n') is -1 there and nothing is ever less than -1). */
+        const nl = after.indexOf('\n');
+        const lineAfter = nl < 0 ? after : after.slice(0, nl);
         const beforeHas = before.lastIndexOf(marker) > before.lastIndexOf('\n');
-        const afterHas = after.indexOf(marker) !== -1 && after.indexOf(marker) < after.indexOf('\n');
-        return beforeHas && afterHas;
+        return beforeHas && lineAfter.indexOf(marker) !== -1;
     },
     
     /**
