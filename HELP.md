@@ -131,6 +131,7 @@ These come with the project folder, not with the HTML file alone. markdown-edito
 - **Save downloads a file instead of writing back.** This browser cannot write to files (Firefox, Safari), or the editor is embedded in another page. Use Chrome, Edge or Brave with the editor opened from disk.
 - **A code block is not coloured.** Check the language name after the opening backticks; unknown names stay plain. Choose one from the language list instead.
 - **A callout shows as an ordinary quote.** The marker must be alone on the first quoted line, with nothing after the closing bracket.
+- **Something stopped responding.** Open the debug log (Ctrl+Shift+L). Every line names its level, and an error the editor did not expect is listed there with the file and line it came from.
 
 ## For an AI: rebuilding from this file
 

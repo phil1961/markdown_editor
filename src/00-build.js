@@ -1,7 +1,7 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.5.1",
+  version:  "1.5.2",
   released: "25 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
@@ -75,6 +75,11 @@ const BUILD = {
      "A line that starts with | is a paragraph until its separator line arrives. Also: single asterisks "
      + "with a space inside (2 * 3 * 4) are no longer italics, Bold and the other inline buttons light up "
      + "on the last line of the raw pane, and an error while editing the preview no longer leaves Enter "
-     + "and Backspace dead."]
+     + "and Backspace dead."],
+    ["Ctrl+B in the link dialog formatted the document behind it, and NOTES.HTML opened as raw tags",
+     "Editor shortcuts stay off while a dialog field is focused. Upper-case .HTML files convert like "
+     + "lower-case ones, and pasted or opened HTML can no longer run scripts inside the editor. The debug "
+     + "log (Ctrl+Shift+L) names each line's level and lists uncaught errors, and Help now ends its user "
+     + "sections with this What changed list."]
   ]
 };

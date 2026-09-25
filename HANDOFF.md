@@ -113,7 +113,7 @@ module out of `dist/editor.cjs`, the Node bundle the parser suite loads.
 | `00-build.js` | `BUILD` | — | version, release date, compile stamp, `corrections` (the Help changelog) |
 | `10-logger.js` | `Logger` | DOM at call time | debug panel (Ctrl+Shift+L) and console |
 | `15-highlight.js` | `Highlight` | — | tokeniser and HTML for coloured fences; `tokens` must join back to the input |
-| `16-doc.js` | `Doc` | `Highlight` | parse, serialize, render, edit ops, caret map. 1600 lines; see Debt |
+| `16-doc.js` | `Doc` | `Highlight` | parse, serialize, render, edit ops, caret map. One indexer (`indexFrom`), one overlap finder (`overlappingIn`), one list exit (`exitListAt`); offset resolution is layered, see Debt |
 | `18-locate.js` | `Locate` | `Doc` | raw offset ↔ Doc offset for Find in other pane |
 | `19-rawblocks.js` | `RawBlocks` | — | fence / callout around the raw-pane caret, as text splices |
 | `20-parser.js` | `MarkdownParser` | `Doc` | `parse()` = clean HTML for export |
@@ -229,21 +229,27 @@ Editor** for `.md`. The script copies the editor to `%TEMP%`, injects
 
 ---
 
-## Debt (ranked, from the 25 September 2026 review)
+## Debt (ranked, from the 25 September 2026 review, updated the same day)
 
-1. `16-doc.js` has duplicate concepts: `index()` / `indexOf()`,
-   `blocksOverlapping()` / `overlappingIn()`, `exitListAt` and its inline copy
-   in `splitBlock`, and five offset resolvers. A fix applied to one copy
-   leaves the other. Dead: `runAt`, `MARK_WRAP`, `BLOCKS`,
-   `IconHighlighter.markFormatsFrom` / `markElement`. Dedupe before adding ops.
-2. Two formatting engines (see above). Unify on Doc only once the parser
-   preserves source formatting.
-3. `Logger` drops the level from the line text; there is no `window.onerror`
-   feeding the panel, so an uncaught throw shows nothing in Ctrl+Shift+L.
-4. `.HTML` (upper case) passes the extension check but skips the HTML
-   conversion (`70-file.js`, `endsWith('.html')` is case-sensitive).
-5. `HtmlToMarkdown.convert` parses clipboard and file HTML on a live element
-   (`temp.innerHTML = html`), so `<img onerror>` runs in the editor's origin.
-   `loadFile` already has an inert `DOMParser` document to hand it instead.
-6. Ctrl+B/I/U/K/N/O/S fire while a modal input is focused; the undo block in
-   `97-app.js` has the `inModalField` guard, the shortcuts block does not.
+Done that day, each as its own commit: the Doc dedupe (one indexer, one
+overlap finder, one list exit, dead code gone), log lines that name their
+level plus uncaught-error capture, the `.HTML` case, an inert HTML parse,
+the modal shortcut guard, and Help rendering `BUILD.corrections`.
+
+Remaining:
+
+1. **Two formatting engines** (see above). Unify on Doc only once the
+   parser preserves source formatting; until then every format is written
+   twice, once in `EditorOps` / `RawBlocks` and once in `Doc`.
+2. **Doc round trips normalise the file** (see above). Preserving soft
+   breaks, bullet glyphs and list nesting means keeping source spans in
+   the model. It is the prerequisite for 1.
+3. **Offset resolution is layered**, one resolver per nesting level:
+   `locAt` (document → block), `containerAt` (into quotes), `innerAt`,
+   `itemAt` (list items), `cellInTable`. That is by design, not
+   duplication, but a new block kind has to be taught to every layer it
+   can nest in. `blockText` is the one place a block's visible text is
+   defined; keep it that way.
+4. **Corrections render as markdown in Help.** A correction whose text
+   contains triple backticks (the code-block entry) shows stray backticks.
+   Escape or reword when it bothers someone.
