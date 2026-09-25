@@ -80,11 +80,10 @@ const FileOps = {
         reader.onload = (e) => {
             let content = e.target.result;
             
-            // If HTML file, convert to markdown
-            if (file.name.endsWith('.html')) {
-                const doc = new DOMParser().parseFromString(content, 'text/html');
-                content = HtmlToMarkdown.convert(doc.body ? doc.body.innerHTML : '');
-            }
+            /* An HTML file becomes markdown. The extension was lower-cased
+               above, so NOTES.HTML converts too instead of landing as raw
+               tags in the editor. */
+            if (extension === '.html') content = HtmlToMarkdown.convert(content);
             
             DOM.editor.value = content;
             EditorOps.updatePreviewNow();

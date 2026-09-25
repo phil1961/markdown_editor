@@ -1,16 +1,15 @@
-/* @requires-dom — HtmlToMarkdown uses document.createElement. */
+/* @requires-dom — HtmlToMarkdown uses DOMParser and DOM nodes. */
 // ============================================================================
 // HTML TO MARKDOWN CONVERTER
 // ============================================================================
 const HtmlToMarkdown = {
+    /* Parse in an inert document. Clipboard HTML and opened .html files are
+       untrusted; on a live element an <img onerror> would run in the
+       editor's origin. DOMParser documents load nothing and run nothing. */
     convert(html) {
         if (!html) return '';
-        
-        // Create a temporary container
-        const temp = document.createElement('div');
-        temp.innerHTML = html;
-        
-        return this.processNode(temp).trim();
+        const doc = new DOMParser().parseFromString(String(html), 'text/html');
+        return this.processNode(doc.body || doc.documentElement).trim();
     },
     
     processNode(node) {

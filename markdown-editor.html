@@ -1644,7 +1644,7 @@
 const BUILD = {
   version:  "1.5.1",
   released: "25 September 2026",
-  compiled: "252132Z SEP 26",
+  compiled: "252137Z SEP 26",
   corrections: [
     ["Raw and preview were two live copies of the note",
      "A document model is now the source of truth. Both panes are views. "
@@ -3924,19 +3924,18 @@ const MarkdownParser = {
 };
 
 /* ==== module 25-htmlmd.js ==== */
-/* @requires-dom — HtmlToMarkdown uses document.createElement. */
+/* @requires-dom — HtmlToMarkdown uses DOMParser and DOM nodes. */
 // ============================================================================
 // HTML TO MARKDOWN CONVERTER
 // ============================================================================
 const HtmlToMarkdown = {
+    /* Parse in an inert document. Clipboard HTML and opened .html files are
+       untrusted; on a live element an <img onerror> would run in the
+       editor's origin. DOMParser documents load nothing and run nothing. */
     convert(html) {
         if (!html) return '';
-        
-        // Create a temporary container
-        const temp = document.createElement('div');
-        temp.innerHTML = html;
-        
-        return this.processNode(temp).trim();
+        const doc = new DOMParser().parseFromString(String(html), 'text/html');
+        return this.processNode(doc.body || doc.documentElement).trim();
     },
     
     processNode(node) {
@@ -5598,11 +5597,10 @@ const FileOps = {
         reader.onload = (e) => {
             let content = e.target.result;
             
-            // If HTML file, convert to markdown
-            if (file.name.endsWith('.html')) {
-                const doc = new DOMParser().parseFromString(content, 'text/html');
-                content = HtmlToMarkdown.convert(doc.body ? doc.body.innerHTML : '');
-            }
+            /* An HTML file becomes markdown. The extension was lower-cased
+               above, so NOTES.HTML converts too instead of landing as raw
+               tags in the editor. */
+            if (extension === '.html') content = HtmlToMarkdown.convert(content);
             
             DOM.editor.value = content;
             EditorOps.updatePreviewNow();
