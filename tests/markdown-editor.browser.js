@@ -127,16 +127,28 @@ const launchArgs = [
     return r.result.value;
   };
   const frames = () => evalJs("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))");
-  const click = async (selector) => {
-    const box = await evalJs(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if(!el) return null;
+  const probe = (selector) => evalJs(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if(!el) return null;
       el.scrollIntoView({ block: "center", inline: "nearest" }); const r = el.getBoundingClientRect();
       const cs = getComputedStyle(el);
       return { x: r.left + r.width/2, y: r.top + r.height/2, w: r.width, h: r.height, vis: cs.visibility, disp: cs.display,
                hit: (document.elementFromPoint(r.left + r.width/2, r.top + r.height/2) || {}).id || null,
                inside: !!el.contains(document.elementFromPoint(r.left + r.width/2, r.top + r.height/2)) }; })()`);
-    if (!box) throw new Error("no element matches " + selector);
-    if (box.w < 1 || box.h < 1 || box.disp === "none" || box.vis === "hidden") throw new Error(selector + " is not visible (" + box.w + "x" + box.h + ", " + box.disp + "/" + box.vis + ")");
-    if (!box.inside) throw new Error(selector + " is covered by #" + box.hit + " at its centre — a pointer could not reach it");
+  const click = async (selector) => {
+    /* Modals fade in. Give a target up to half a second to become visible
+       and reachable before calling it hidden or covered; a real pointer
+       would wait that long too. */
+    let box;
+    for (let attempt = 0; ; attempt++) {
+      box = await probe(selector);
+      if (!box) throw new Error("no element matches " + selector);
+      const visible = box.w >= 1 && box.h >= 1 && box.disp !== "none" && box.vis !== "hidden";
+      if (visible && box.inside) break;
+      if (attempt >= 10) {
+        if (!visible) throw new Error(selector + " is not visible (" + box.w + "x" + box.h + ", " + box.disp + "/" + box.vis + ")");
+        throw new Error(selector + " is covered by #" + box.hit + " at its centre — a pointer could not reach it");
+      }
+      await evalJs("new Promise(r => setTimeout(r, 50))");
+    }
     for (const type of ["mouseMoved", "mousePressed", "mouseReleased"])
       await cdp.send("Input.dispatchMouseEvent", { type, x: box.x, y: box.y, button: "left", clickCount: 1 }, S);
     await frames();
