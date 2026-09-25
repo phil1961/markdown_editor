@@ -1,12 +1,12 @@
 # Markdown Editor
 
-A dual-pane markdown editor that ships as **one HTML file** with zero network requests. Open `markdown-editor.html` in any browser.
+A dual-pane markdown editor that ships as **one HTML file** with zero network requests. Open `markdown-editor.html` in any browser. Press F1 inside it for the user guide.
 
-The HTML file is **generated**. Edit `src/`, then:
+`markdown-editor.html` and `HELP.md` are **generated**. Edit `src/`, then:
 
 ```
-node build.js            # assemble src/ into markdown-editor.html
-node build.js --check    # fail if the assembled file is stale
+node build.js            # assemble src/ into markdown-editor.html, HELP.md, dist/editor.cjs
+node build.js --check    # fail if any of the three is stale
 ```
 
 ---
@@ -15,13 +15,16 @@ node build.js --check    # fail if the assembled file is stale
 
 - Dual-pane editing — markdown on the left, live rendered preview on the right (both panes are editable)
 - Resizable panes — drag the bar between them, double-click to reset
-- Synchronized scrolling (Track button)
-- Formatting toolbar — bold, italic, underline, strikethrough, H1–H6, lists, nested quotes, code, images, links, tables, horizontal rules
+- Synchronized scrolling (Track button) and Find in other pane (the crosshair beside it)
+- Formatting toolbar — bold, italic, underline, strikethrough, H1–H6, lists, nested quotes, callouts (`> [!NOTE]` and friends), code with a language picker, images, links, tables with row/column edits, horizontal rules
+- Syntax colouring for fenced code in the preview and in exported HTML
 - View modes — Editor only, Preview only, or Both
 - Open via drag-and-drop, File menu, or Windows Explorer / the command line
 - Save — writes back to the opened file in Chrome, Edge and Brave; Save As asks where; other browsers download
 - Export — Export As Markdown / HTML / Plain Text (always a download)
 - Undo/redo across both panes (Ctrl+Z / Ctrl+Y), with a History panel (Ctrl+Shift+H) that lists every step and what it changed
+- In-page confirm and notice dialogs, so the editor works inside a sandboxed frame
+- Help (F1) with a downloadable guide whose last section lets an AI rebuild the editor from the `.html` alone
 
 ---
 
@@ -30,13 +33,15 @@ node build.js --check    # fail if the assembled file is stale
 | File | Description |
 |------|-------------|
 | `markdown-editor.html` | Shipping artifact. Generated. Do not edit. |
-| `src/` | Source. Numbered JS modules, `page.html`, `style.css`. |
-| `build.js` | Assembler. No dependencies. |
-| `tests/` | Parser suite and a real-engine (CDP) check |
+| `HELP.md` | The in-editor guide as a file. Generated from `src/help.md`. |
+| `src/` | Source. Numbered JS modules, `page.html`, `style.css`, `help.md`. |
+| `build.js` | Assembler. No dependencies. Writes the two generated files and `dist/editor.cjs`. |
+| `tools/unpack.js` | Splits a built `markdown-editor.html` back into `src/`. The inverse of `build.js`. |
+| `tests/` | Parser suite, a smoke check and a full UI check in a real browser (CDP, no packages) |
 | `markdown-editor.ps1` | Explorer / command-line launcher |
 | `markdown-editor.bat` | Calls the ps1 |
-| `markdown-editor.reg` | Written by `ps1 -Install`. Double-click also works. |
-| `HANDOFF.md` | Plan of record |
+| `markdown-editor.reg` | Written by `ps1 -Install` for this machine's path. |
+| `HANDOFF.md` | Plan of record: design, module map, pitfalls, debt |
 | `CLAUDE.md` | Working rules for AI sessions |
 
 ---
@@ -62,6 +67,7 @@ The launcher copies the editor under `%TEMP%` and injects the file. It does not 
 
 | Shortcut | Action |
 |----------|--------|
+| `F1` | Open or close Help |
 | `Ctrl+B` | Bold |
 | `Ctrl+I` | Italic |
 | `Ctrl+U` | Underline |
@@ -74,7 +80,7 @@ The launcher copies the editor under `%TEMP%` and injects the file. It does not 
 | `Ctrl+Y` / `Ctrl+Shift+Z` | Redo |
 | `Ctrl+Shift+H` | Toggle the History panel |
 | `Ctrl+Shift+L` | Toggle debug log panel |
-| `Escape` | Close menus and dialogs |
+| `Escape` | Close menus, dialogs and Help |
 
 ---
 
@@ -82,21 +88,36 @@ The launcher copies the editor under `%TEMP%` and injects the file. It does not 
 
 ```
 node build.js
+node build.js --check
 node tests/markdown-editor.tests.js
+node tests/smoke.browser.js
 node tests/markdown-editor.browser.js
 ```
 
-The browser check needs Node 22+ and Brave, Chrome, or Edge. It is not a gate; it skips with exit 0 if no browser is found. No npm packages.
+The first three are the gates. The browser checks need Node 22+ and Brave, Chrome, or Edge; they skip with exit 0 when no browser is found, and are the gate for layout and interaction claims where one is. No npm packages.
+
+---
+
+## Rebuilding from the HTML alone
+
+The shipped file is self-describing. If `src/` is ever lost again:
+
+```
+node tools/unpack.js markdown-editor.html
+node build.js --check
+```
+
+Help → the last section explains the same procedure for an AI that has only the `.html`.
 
 ---
 
 ## Requirements
 
 - Any modern browser to run the HTML
-- Node.js 18+ to rebuild (`build.js`); Node 22+ for the browser check
+- Node.js 18+ to rebuild (`build.js`); Node 22+ for the browser checks
 
 ---
 
 ## Author
 
-Phil — November 2024; re-org 11 September 2026
+Phil — November 2024; re-org 11 September 2026; source recovered from the deployed 1.5.0 on 25 September 2026
