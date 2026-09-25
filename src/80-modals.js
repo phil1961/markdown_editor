@@ -1,5 +1,49 @@
 /* @requires-dom */
 // ============================================================================
+// DIALOG — in-page confirm/alert. Never call window.confirm()/alert(): a
+// sandboxed iframe without allow-modals ignores them (confirm returns false
+// with nothing shown), so a host embedding the editor loses every answer.
+// ============================================================================
+const Dialog = {
+    _resolve: null,
+    _return: null,
+
+    /* Resolves true for OK, false for Cancel / Escape / backdrop. */
+    ask(message, opts) {
+        opts = opts || {};
+        if (this._resolve) this.close(false);
+        this._return = document.activeElement;
+        DOM.dialogTitle.textContent = opts.title || 'Markdown Editor';
+        DOM.dialogMessage.textContent = message;
+        DOM.dialogOk.textContent = opts.ok || 'OK';
+        DOM.dialogCancel.textContent = opts.cancel || 'Cancel';
+        DOM.dialogCancel.hidden = !!opts.notice;
+        DOM.dialogModal.classList.add('active');
+        (opts.notice ? DOM.dialogOk : DOM.dialogCancel).focus();
+        return new Promise(res => { this._resolve = res; });
+    },
+
+    tell(message, title) {
+        return this.ask(message, { title, notice: true }).then(() => undefined);
+    },
+
+    isOpen() {
+        return !!this._resolve;
+    },
+
+    close(result) {
+        if (!this._resolve) return;
+        const res = this._resolve;
+        const back = this._return;
+        this._resolve = null;
+        this._return = null;
+        DOM.dialogModal.classList.remove('active');
+        if (back && back.focus && document.contains(back) && back !== document.body) back.focus();
+        res(!!result);
+    }
+};
+
+// ============================================================================
 // MODAL HANDLERS
 // ============================================================================
 const ModalOps = {
@@ -108,7 +152,7 @@ const ModalOps = {
         const url = DOM.linkUrl.value.trim();
         
         if (!text || !url) {
-            alert('Please enter both link text and URL');
+            Dialog.tell('Please enter both link text and URL.', 'Insert Link');
             return;
         }
         
@@ -176,11 +220,83 @@ const ModalOps = {
         const url = DOM.imageUrl.value.trim();
         
         if (!url) {
-            alert('Please enter an image URL');
+            Dialog.tell('Please enter an image URL.', 'Insert Image');
             return;
         }
         
         this.closeImageModal();
         this.insertAtSaved("![" + alt + "](" + url + ")", "Insert image");
+    }
+};
+
+// ============================================================================
+// HELP — HELP_MD (src/help.md, embedded by build.js) rendered by Doc.html in a
+// panel over the editor. It never touches the document. Download saves the
+// same Markdown: the file an AI needs next to markdown-editor.html.
+// ============================================================================
+const HelpOps = {
+    FILE_NAME: 'markdown-editor-help.md',
+    _rendered: false,
+    _return: null,
+
+    isOpen() {
+        return !!DOM.helpPanel && DOM.helpPanel.classList.contains('active');
+    },
+
+    render() {
+        DOM.helpBody.innerHTML = Doc.html(Doc.parse(HELP_MD));
+        /* Export HTML carries a title element; here the shared ::before draws it. */
+        DOM.helpBody.querySelectorAll('.markdown-alert-title').forEach(el => el.remove());
+        DOM.helpBody.querySelectorAll('a[href]').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+        DOM.helpToc.innerHTML = '';
+        DOM.helpBody.querySelectorAll('h2').forEach((h, i) => {
+            h.id = 'help-section-' + i;
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'help-toc-item';
+            item.textContent = h.textContent;
+            item.addEventListener('click', () => h.scrollIntoView({ block: 'start' }));
+            DOM.helpToc.appendChild(item);
+        });
+        DOM.helpVersion.textContent = 'v' + BUILD.version;
+        this._rendered = true;
+    },
+
+    open() {
+        if (!this._rendered) this.render();
+        if (this.isOpen()) return;
+        /* Clicking Help focuses the button; closing should go back to writing. */
+        const active = document.activeElement;
+        this._return = active === DOM.editor || active === DOM.preview
+            ? active
+            : (AppState.activePane === 'preview' ? DOM.preview : DOM.editor);
+        DOM.helpPanel.classList.add('active');
+        DOM.helpClose.focus();
+    },
+
+    close() {
+        if (!this.isOpen()) return;
+        DOM.helpPanel.classList.remove('active');
+        const back = this._return;
+        this._return = null;
+        if (back && back.focus && document.contains(back) && back !== document.body) back.focus();
+    },
+
+    toggle() {
+        if (this.isOpen()) this.close(); else this.open();
+    },
+
+    download() {
+        const blob = new Blob([HELP_MD], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = this.FILE_NAME;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        DOM.statusLeft.textContent = 'Downloaded: ' + this.FILE_NAME;
+        Logger.info('Help', 'Downloaded ' + this.FILE_NAME);
     }
 };

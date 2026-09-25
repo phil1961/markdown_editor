@@ -5,10 +5,14 @@
 const FileOps = {
     newDocument() {
         if (AppState.isModified) {
-            if (!confirm('You have unsaved changes. Create a new document anyway?')) {
-                return;
-            }
+            return Dialog.ask('You have unsaved changes. Create a new document anyway?',
+                { title: 'Unsaved changes', ok: 'Discard changes' })
+                .then(yes => { if (yes) this.clearDocument(); });
         }
+        this.clearDocument();
+    },
+
+    clearDocument() {
         
         DOM.editor.value = '';
         Doc.load('');
@@ -68,7 +72,7 @@ const FileOps = {
         const extension = '.' + file.name.split('.').pop().toLowerCase();
         
         if (!validExtensions.includes(extension)) {
-            alert('Unsupported file type. Please use .md, .txt, or .html files.');
+            Dialog.tell(`${file.name} is not a supported file type. Please use .md, .txt, or .html files.`, 'Cannot open file');
             return;
         }
         
@@ -94,7 +98,7 @@ const FileOps = {
             Logger.info('File', `Opened: ${file.name}`);
         };
         reader.onerror = () => {
-            alert('Error reading file. Please try again.');
+            Dialog.tell(`Error reading ${file.name}. Please try again.`, 'Cannot open file');
             Logger.error('File', `Error reading: ${file.name}`);
         };
         reader.readAsText(file);
@@ -273,6 +277,18 @@ img { max-width: 100%; height: auto; }
 table { border-collapse: collapse; width: 100%; }
 th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
 th { background: #f9f9f9; }
+pre[data-lang] { position: relative; }
+pre[data-lang]::before { content: attr(data-lang); position: absolute; top: 5px; right: 10px; font: 600 10px/1 sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #9ca3af; }
+.hl-k { color: #c4a7ff; } .hl-s { color: #a5e3a0; } .hl-c { color: #8b949e; font-style: italic; }
+.hl-n { color: #ffb86c; } .hl-v { color: #7dd3fc; } .hl-f { color: #82b1ff; } .hl-t { color: #ff9eb1; }
+.hl-a { color: #fcd34d; } .hl-h { color: #93c5fd; font-weight: 600; }
+.hl-ins { color: #86efac; background: rgba(34, 197, 94, .14); } .hl-del { color: #fca5a5; background: rgba(239, 68, 68, .14); }
+.markdown-alert-title { font-weight: 600; margin: 0 0 .35em; }
+.markdown-alert-note { border-left-color: #2563eb; background: #eff6ff; } .markdown-alert-note .markdown-alert-title { color: #1d4ed8; }
+.markdown-alert-tip { border-left-color: #16a34a; background: #f0fdf4; } .markdown-alert-tip .markdown-alert-title { color: #15803d; }
+.markdown-alert-important { border-left-color: #9333ea; background: #faf5ff; } .markdown-alert-important .markdown-alert-title { color: #7e22ce; }
+.markdown-alert-warning { border-left-color: #d97706; background: #fffbeb; } .markdown-alert-warning .markdown-alert-title { color: #b45309; }
+.markdown-alert-caution { border-left-color: #dc2626; background: #fef2f2; } .markdown-alert-caution .markdown-alert-title { color: #b91c1c; }
     </style>
 </head>
 <body>
@@ -374,10 +390,17 @@ const DragDropHandler = {
             const file = files[0];
             
             // Check for unsaved changes
+            /* Not confirm(): in a sandboxed iframe without allow-modals it
+               returns false with no prompt, and the drop was thrown away. */
             if (AppState.isModified) {
-                if (!confirm('You have unsaved changes. Load the dropped file anyway?')) {
-                    return;
-                }
+                Dialog.ask('You have unsaved changes. Load the dropped file anyway?',
+                    { title: 'Unsaved changes', ok: 'Discard changes' })
+                    .then(yes => {
+                        if (!yes) { Logger.info('DragDrop', `Drop cancelled: ${file.name}`); return; }
+                        FileOps.loadFile(file);
+                        Logger.info('DragDrop', `File dropped: ${file.name}`);
+                    });
+                return;
             }
             
             FileOps.loadFile(file);

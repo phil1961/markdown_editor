@@ -91,6 +91,7 @@ const HtmlToMarkdown = {
             case 'td':
                 return content;
             case 'div':
+                if (this.alertKind(el)) return this.convertBlockquote(el);
                 return content + (content.endsWith('\n') ? '' : '\n');
             default:
                 return content;
@@ -107,9 +108,17 @@ const HtmlToMarkdown = {
         return lead + marker + core + marker + trail;
     },
     
+    /* Our export's <blockquote class="markdown-alert markdown-alert-note">, or
+       GitHub's rendered <div> with the same classes. */
+    alertKind(el) {
+        const m = /(?:^|\s)markdown-alert-(note|tip|important|warning|caution)(?:\s|$)/.exec(el.className || '');
+        return m ? m[1] : '';
+    },
+
     convertBlockquote(el, depth = 1) {
         const prefix = '>'.repeat(depth) + ' ';
-        let result = '';
+        const kind = this.alertKind(el);
+        let result = kind ? prefix + '[!' + kind.toUpperCase() + ']\n' : '';
         
         for (const child of el.childNodes) {
             if (child.nodeType === Node.TEXT_NODE) {
@@ -119,6 +128,7 @@ const HtmlToMarkdown = {
                 }
             } else if (child.nodeType === Node.ELEMENT_NODE) {
                 const tag = child.tagName.toLowerCase();
+                if (/(?:^|\s)markdown-alert-title(?:\s|$)/.test(child.className || '')) continue;
                 if (tag === 'blockquote') {
                     result += this.convertBlockquote(child, depth + 1);
                 } else if (tag === 'ul' || tag === 'ol') {

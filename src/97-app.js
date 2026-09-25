@@ -83,6 +83,22 @@ function setupEventListeners() {
         FileOps.downloadEditor();
     });
     DOM.fileInput.addEventListener('change', (e) => FileOps.handleFileOpen(e));
+
+    // Help panel
+    DOM.helpBtn.addEventListener('click', () => HelpOps.open());
+    DOM.menuHelp.addEventListener('click', () => {
+        DOM.fileMenu.classList.remove('open');
+        HelpOps.open();
+    });
+    DOM.menuDownloadHelp.addEventListener('click', () => {
+        DOM.fileMenu.classList.remove('open');
+        HelpOps.download();
+    });
+    DOM.helpDownload.addEventListener('click', () => HelpOps.download());
+    DOM.helpClose.addEventListener('click', () => HelpOps.close());
+    DOM.helpPanel.addEventListener('click', (e) => {
+        if (e.target === DOM.helpPanel) HelpOps.close();
+    });
     
     // Undo / redo / history panel
     DOM.undoBtn.addEventListener('click', () => History.undo());
@@ -137,6 +153,11 @@ function setupEventListeners() {
     DOM.imageCancel.addEventListener('click', () => ModalOps.closeImageModal());
     DOM.imageSubmit.addEventListener('click', () => ModalOps.submitImage());
     DOM.tableCancel.addEventListener('click', () => TableOps.closeModal());
+    DOM.dialogOk.addEventListener('click', () => Dialog.close(true));
+    DOM.dialogCancel.addEventListener('click', () => Dialog.close(false));
+    DOM.dialogModal.addEventListener('click', (e) => {
+        if (e.target === DOM.dialogModal) Dialog.close(false);
+    });
     DOM.tableSubmit.addEventListener('click', () => TableOps.insert());
     
     // Table preview update on input change
@@ -167,7 +188,29 @@ function setupEventListeners() {
     
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        const inModalField = !!(e.target && e.target.closest && e.target.closest('.modal'));
+        /* An open dialog owns the keyboard: Escape cancels, nothing else fires. */
+        if (Dialog.isOpen()) {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                Dialog.close(false);
+            }
+            return;
+        }
+        /* Help reads over the document: Escape or F1 closes it, and editor
+           shortcuts stay off while it is open (native copy and find still work). */
+        if (HelpOps.isOpen()) {
+            if (e.key === 'Escape' || e.key === 'F1') {
+                e.preventDefault();
+                HelpOps.close();
+            }
+            return;
+        }
+        if (e.key === 'F1') {
+            e.preventDefault();
+            HelpOps.open();
+            return;
+        }
+        const inModalField =!!(e.target && e.target.closest && e.target.closest('.modal'));
         if ((e.ctrlKey || e.metaKey) && !inModalField) {
             const k = e.key.toLowerCase();
             /* One undo stack for both panes replaces the textarea's native one. */
@@ -308,6 +351,8 @@ function init() {
     setupEventListeners();
     PreviewOps.init();
     Splitter.init();
+    PaneLocator.init();
+    BlockStyleOps.init();
     if (!loadFromPayload()) {
         Doc.load(DOM.editor.value || "");
         DOM.preview.innerHTML = Doc.previewHTML();

@@ -111,10 +111,36 @@
                         </svg>
                         Download this editor
                     </button>
+                    <div class="file-menu-divider"></div>
+                    <button class="file-menu-item" id="menuHelp">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/>
+                            <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        Help
+                        <span class="shortcut">F1</span>
+                    </button>
+                    <button class="file-menu-item" id="menuDownloadHelp">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Download help (.md)
+                    </button>
                 </div>
             </div>
         </div>
         <div class="header-right">
+            <button id="helpBtn" class="download-app-btn" type="button" title="Help, and how to rebuild this editor (F1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/>
+                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+                Help
+            </button>
             <a id="downloadAppBtn" class="download-app-btn" href="markdown-editor.html" download="markdown-editor.html" title="Save this editor to your computer. Open the file in any browser — no install, no network.">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
@@ -213,6 +239,15 @@
             </button>
             <button id="quoteIncreaseBtn" class="toolbar-btn wide" title="Add Quote Level">❯ +</button>
             <button id="quoteDecreaseBtn" class="toolbar-btn wide" title="Remove Quote Level">❮ -</button>
+            <select id="alertSelect" class="toolbar-select" title="Callout: make the quote at the caret a Note, Tip, Important, Warning or Caution (> [!NOTE])" aria-label="Callout type">
+                <option value="none" hidden>Callout</option>
+                <option value="">Plain quote</option>
+                <option value="note">Note</option>
+                <option value="tip">Tip</option>
+                <option value="important">Important</option>
+                <option value="warning">Warning</option>
+                <option value="caution">Caution</option>
+            </select>
         </div>
         
         <!-- Insert Group -->
@@ -243,6 +278,7 @@
                     <line x1="13" y1="16" x2="17" y2="16"/>
                 </svg>
             </button>
+            <select id="codeLangSelect" class="toolbar-select" title="Code block language: colours the code at the caret" aria-label="Code block language" disabled></select>
             <button id="tableBtn" class="toolbar-btn" title="Insert Table">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="3" width="18" height="18" rx="2"/>
@@ -344,6 +380,12 @@
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
                     <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+            </button>
+            <button id="locateBtn" class="toolbar-btn" title="Find in other pane: select a word in one pane, then click to select it in the other" aria-label="Find in other pane">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
                 </svg>
             </button>
         </div>
@@ -450,6 +492,34 @@
         </div>
     </div>
     
+    <!-- Confirm / notice dialog (replaces window.confirm and alert) -->
+    <div class="modal-overlay" id="dialogModal" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" aria-describedby="dialogMessage">
+        <div class="modal">
+            <div class="modal-title" id="dialogTitle">Markdown Editor</div>
+            <div class="modal-message" id="dialogMessage"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn modal-btn-cancel" id="dialogCancel">Cancel</button>
+                <button class="modal-btn modal-btn-submit" id="dialogOk">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help panel: src/help.md, embedded by build.js as HELP_MD -->
+    <div class="help-overlay" id="helpPanel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+        <div class="help-window">
+            <div class="help-header">
+                <span class="help-title" id="helpTitle">Help</span>
+                <span class="help-version" id="helpVersion"></span>
+                <button class="help-download" id="helpDownload" type="button" title="Save this guide as a Markdown file">Download help (.md)</button>
+                <button class="history-close" id="helpClose" type="button" title="Close (Esc)" aria-label="Close help">&times;</button>
+            </div>
+            <div class="help-main">
+                <nav class="help-toc" id="helpToc" aria-label="Help contents"></nav>
+                <div class="help-body" id="helpBody"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden File Input -->
     <input type="file" id="fileInput" accept=".md,.txt,.html" style="display: none;">
     

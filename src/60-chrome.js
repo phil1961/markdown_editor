@@ -7,7 +7,8 @@ const ScrollSyncManager = {
     isSyncing: false,
     syncTimeout: null,
     lastSyncSource: null,
-    
+    heldUntil: 0,
+
     init(editor, previewContainer, trackBtn) {
         // editor = the textarea element (scrolls itself)
         // previewContainer = the container div (scrolls the preview content)
@@ -35,8 +36,17 @@ const ScrollSyncManager = {
         Logger.info('ScrollSync', `Scroll sync ${this.enabled ? 'enabled' : 'disabled'}`);
     },
     
+    /* A programmatic scroll (Find in other pane) must not be mirrored, and a
+       sync already queued must not undo it. */
+    hold(ms) {
+        if (this.syncTimeout) clearTimeout(this.syncTimeout);
+        this.syncTimeout = null;
+        this.lastSyncSource = null;
+        this.heldUntil = Date.now() + ms;
+    },
+
     handleScroll(source) {
-        if (!this.enabled || this.isSyncing) return;
+        if (!this.enabled || this.isSyncing || Date.now() < this.heldUntil) return;
         if (this.lastSyncSource && this.lastSyncSource !== source) return;
         
         this.lastSyncSource = source;
@@ -306,6 +316,10 @@ const IconHighlighter = {
                 }
             }
         }
+
+        const fence = RawBlocks.fenceAt(text, pos);
+        const quote = RawBlocks.alertAt(text, pos);
+        BlockStyleOps.reflect(fence ? fence.lang : null, quote ? quote.kind : null);
     },
     
     /**
@@ -336,6 +350,7 @@ const IconHighlighter = {
         else if (bt === "quote") DOM.quoteIncreaseBtn.classList.add("active");
         else if (bt === "hr") DOM.hrBtn.classList.add("active");
         this.setTableEditEnabled(bt === "table");
+        BlockStyleOps.reflect(Doc.codeLangAt(), Doc.alertAt());
     },
 
     markFormatsFrom(node) {
@@ -434,5 +449,94 @@ const IconHighlighter = {
             DOM.tableRowAboveBtn, DOM.tableRowBelowBtn, DOM.tableRowDelBtn,
             DOM.tableColLeftBtn, DOM.tableColRightBtn, DOM.tableColDelBtn
         ].forEach(btn => { if (btn) btn.disabled = !on; });
+    }
+};
+
+// ============================================================================
+// FIND IN OTHER PANE — the button beside Track. Select a word (or leave the
+// caret in one) in either pane; the same occurrence is selected in the other
+// pane and scrolled into view. The offset mapping is Locate (18-locate.js).
+// ============================================================================
+const PaneLocator = {
+    init() {
+        if (DOM.locateBtn) DOM.locateBtn.addEventListener('click', () => this.jump());
+    },
+
+    jump() {
+        if (AppState.viewMode !== 'both') ViewModeManager.setMode('both');
+        /* Keep the source pane where it is; scroll only the pane we land in. */
+        ScrollSyncManager.hold(250);
+        return AppState.activePane === 'preview' ? this.previewToEditor() : this.editorToPreview();
+    },
+
+    editorToPreview() {
+        const ed = DOM.editor;
+        EditorOps.updatePreviewNow();
+        const hit = Locate.rawToDoc(ed.value, ed.selectionStart, ed.selectionEnd);
+        if (!hit) return this.miss('raw');
+        DOM.preview.focus({ preventScroll: true });
+        AppState.activePane = 'preview';
+        Doc.setSelection(hit.from, hit.to);
+        Doc.restorePreviewSelection(DOM.preview);
+        this.scrollPreviewToSelection();
+        IconHighlighter.checkPreviewFormats();
+        return this.found(window.getSelection().toString(), 'preview');
+    },
+
+    previewToEditor() {
+        Doc.readPreviewSelection(DOM.preview);
+        const s = Doc.selection();
+        const ed = DOM.editor;
+        const hit = Locate.docToRaw(ed.value, s.from, s.to);
+        if (!hit) return this.miss('preview');
+        ed.focus({ preventScroll: true });
+        ed.setSelectionRange(hit.from, hit.to);
+        AppState.activePane = 'editor';
+        this.scrollEditorTo(hit.from);
+        IconHighlighter.checkEditorFormats();
+        return this.found(ed.value.slice(hit.from, hit.to), 'raw');
+    },
+
+    scrollPreviewToSelection() {
+        const s = window.getSelection();
+        if (!s.rangeCount) return;
+        const r = s.getRangeAt(0).getBoundingClientRect();
+        if (!r.width && !r.height) return;
+        const box = DOM.previewContainer.getBoundingClientRect();
+        DOM.previewContainer.scrollTop += r.top - box.top - box.height / 3;
+    },
+
+    /* A textarea has no range rects. Measure the offset in a hidden mirror that
+       wraps like the textarea, then put that line a third of the way down. */
+    scrollEditorTo(pos) {
+        const ed = DOM.editor;
+        const cs = getComputedStyle(ed);
+        const mirror = document.createElement('div');
+        ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'tabSize',
+         'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'wordBreak'].forEach(p => { mirror.style[p] = cs[p]; });
+        Object.assign(mirror.style, {
+            position: 'absolute', visibility: 'hidden', top: '0', left: '-9999px',
+            boxSizing: 'border-box', width: ed.clientWidth + 'px',
+            whiteSpace: 'pre-wrap', overflowWrap: 'break-word'
+        });
+        mirror.textContent = ed.value.slice(0, pos);
+        const mark = document.createElement('span');
+        mark.textContent = '\u200b';
+        mirror.appendChild(mark);
+        document.body.appendChild(mirror);
+        const y = mark.offsetTop;
+        document.body.removeChild(mirror);
+        ed.scrollTop = Math.max(0, y - ed.clientHeight / 3);
+    },
+
+    found(text, pane) {
+        DOM.statusLeft.textContent = 'Found "' + text + '" in the ' + pane + ' pane';
+        Logger.info('Locate', 'Selected "' + text + '" in the ' + pane + ' pane');
+        return true;
+    },
+
+    miss(pane) {
+        DOM.statusLeft.textContent = 'Could not find that in the other pane. Select a word in the ' + pane + ' pane and try again.';
+        return false;
     }
 };

@@ -279,6 +279,20 @@
             border-color: transparent;
         }
 
+        .toolbar-select {
+            height: 36px;
+            max-width: 112px;
+            padding: 0 4px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            background-color: #fff;
+            color: #374151;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .toolbar-select:hover { border-color: #9ca3af; }
+        .toolbar-select:disabled { opacity: 0.35; cursor: default; }
+
         #preview th, #preview td {
             cursor: text;
         }
@@ -422,55 +436,94 @@
             background-color: #fefefe;
         }
         
-        /* Preview Markdown Styles */
-        #preview h1 { font-size: 2em; font-weight: 700; margin: 0.67em 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.3em; }
-        #preview h2 { font-size: 1.5em; font-weight: 600; margin: 0.83em 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3em; }
-        #preview h3 { font-size: 1.25em; font-weight: 600; margin: 1em 0; }
-        #preview h4 { font-size: 1em; font-weight: 600; margin: 1.33em 0; }
-        #preview h5 { font-size: 0.875em; font-weight: 600; margin: 1.5em 0; }
-        #preview h6 { font-size: 0.85em; font-weight: 600; margin: 1.67em 0; color: #6b7280; }
+        /* Markdown styles: shared by the preview and the Help panel */
+        :is(#preview, .help-body) h1 { font-size: 2em; font-weight: 700; margin: 0.67em 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.3em; }
+        :is(#preview, .help-body) h2 { font-size: 1.5em; font-weight: 600; margin: 0.83em 0; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.3em; }
+        :is(#preview, .help-body) h3 { font-size: 1.25em; font-weight: 600; margin: 1em 0; }
+        :is(#preview, .help-body) h4 { font-size: 1em; font-weight: 600; margin: 1.33em 0; }
+        :is(#preview, .help-body) h5 { font-size: 0.875em; font-weight: 600; margin: 1.5em 0; }
+        :is(#preview, .help-body) h6 { font-size: 0.85em; font-weight: 600; margin: 1.67em 0; color: #6b7280; }
         
-        #preview p { margin: 1em 0; }
+        :is(#preview, .help-body) p { margin: 1em 0; }
         
-        #preview strong { font-weight: 700; }
-        #preview em { font-style: italic; }
-        #preview u { text-decoration: underline; }
-        #preview s, #preview del { text-decoration: line-through; color: #6b7280; }
+        :is(#preview, .help-body) strong { font-weight: 700; }
+        :is(#preview, .help-body) em { font-style: italic; }
+        :is(#preview, .help-body) u { text-decoration: underline; }
+        :is(#preview, .help-body) s, :is(#preview, .help-body) del { text-decoration: line-through; color: #6b7280; }
         
-        #preview blockquote {
+        :is(#preview, .help-body) blockquote {
             margin: 1em 0;
             padding: 0.5em 1em;
             border-left: 4px solid #3b82f6;
             background-color: #eff6ff;
             color: #1e40af;
         }
-        #preview blockquote p { margin: 0.35em 0; }
-        #preview blockquote p:first-child { margin-top: 0; }
-        #preview blockquote p:last-child { margin-bottom: 0; }
+        :is(#preview, .help-body) blockquote p { margin: 0.35em 0; }
+        :is(#preview, .help-body) blockquote p:first-child { margin-top: 0; }
+        :is(#preview, .help-body) blockquote p:last-child { margin-bottom: 0; }
         
-        #preview blockquote blockquote {
+        :is(#preview, .help-body) blockquote blockquote {
             border-left-color: #8b5cf6;
             background-color: #f5f3ff;
             color: #5b21b6;
         }
         
-        #preview blockquote blockquote blockquote {
+        :is(#preview, .help-body) blockquote blockquote blockquote {
             border-left-color: #ec4899;
             background-color: #fdf2f8;
             color: #9d174d;
         }
+
+        /* Callouts (> [!NOTE]). The title is ::before so it is not editable text. */
+        :is(#preview, .help-body) blockquote.markdown-alert { color: #1f2937; }
+        :is(#preview, .help-body) blockquote.markdown-alert::before {
+            content: attr(data-alert);
+            display: block;
+            margin: 0.1em 0 0.35em;
+            padding-left: 22px;
+            font-weight: 600;
+            line-height: 18px;
+            background: no-repeat left center / 16px 16px;
+            user-select: none;
+            pointer-events: none;
+        }
+        :is(#preview, .help-body) blockquote.markdown-alert-note { border-left-color: #2563eb; background-color: #eff6ff; }
+        :is(#preview, .help-body) blockquote.markdown-alert-note::before {
+            color: #1d4ed8;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%231d4ed8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='8' cy='8' r='6.4'/%3E%3Cpath d='M8 7.2v4M8 4.8h.01'/%3E%3C/svg%3E");
+        }
+        :is(#preview, .help-body) blockquote.markdown-alert-tip { border-left-color: #16a34a; background-color: #f0fdf4; }
+        :is(#preview, .help-body) blockquote.markdown-alert-tip::before {
+            color: #15803d;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2315803d' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.7 10.6a4.4 4.4 0 1 1 4.6 0V12H5.7z'/%3E%3Cpath d='M6.4 14.2h3.2'/%3E%3C/svg%3E");
+        }
+        :is(#preview, .help-body) blockquote.markdown-alert-important { border-left-color: #9333ea; background-color: #faf5ff; }
+        :is(#preview, .help-body) blockquote.markdown-alert-important::before {
+            color: #7e22ce;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%237e22ce' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 2.8h11v8.4H8.2L5 13.8v-2.6H2.5z'/%3E%3Cpath d='M8 5.2v2.6M8 9.6h.01'/%3E%3C/svg%3E");
+        }
+        :is(#preview, .help-body) blockquote.markdown-alert-warning { border-left-color: #d97706; background-color: #fffbeb; }
+        :is(#preview, .help-body) blockquote.markdown-alert-warning::before {
+            color: #b45309;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23b45309' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2.2l6.3 11.2H1.7z'/%3E%3Cpath d='M8 6.6v3.2M8 11.6h.01'/%3E%3C/svg%3E");
+        }
+        :is(#preview, .help-body) blockquote.markdown-alert-caution { border-left-color: #dc2626; background-color: #fef2f2; }
+        :is(#preview, .help-body) blockquote.markdown-alert-caution::before {
+            color: #b91c1c;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23b91c1c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5.4 1.8h5.2l3.6 3.6v5.2l-3.6 3.6H5.4l-3.6-3.6V5.4z'/%3E%3Cpath d='M8 5v3.6M8 11h.01'/%3E%3C/svg%3E");
+        }
         
-        #preview ul, #preview ol {
+        :is(#preview, .help-body) ul, :is(#preview, .help-body) ol {
             margin: 1em 0;
             padding-left: 2em;
         }
         
-        #preview ul { list-style-type: disc; }
-        #preview ol { list-style-type: decimal; }
+        :is(#preview, .help-body) ul { list-style-type: disc; }
+        :is(#preview, .help-body) ol { list-style-type: decimal; }
         
-        #preview li { margin: 0.5em 0; }
+        :is(#preview, .help-body) li { margin: 0.5em 0; }
         
-        #preview code {
+        :is(#preview, .help-body) code {
             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
             background-color: #f3f4f6;
             padding: 0.2em 0.4em;
@@ -479,7 +532,7 @@
             color: #dc2626;
         }
         
-        #preview pre {
+        :is(#preview, .help-body) pre {
             background-color: #1f2937;
             color: #f9fafb;
             padding: 16px;
@@ -489,30 +542,56 @@
             white-space: pre;
         }
         
-        #preview pre code {
+        :is(#preview, .help-body) pre code {
             background: none;
             padding: 0;
             color: inherit;
             font-size: 0.9em;
         }
+
+        /* Language badge and syntax colours (Highlight, src/15-highlight.js). */
+        :is(#preview, .help-body) pre { position: relative; }
+        :is(#preview, .help-body) pre[data-lang]::before {
+            content: attr(data-lang);
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            font: 600 10px/1 -apple-system, 'Segoe UI', sans-serif;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #9ca3af;
+            pointer-events: none;
+            user-select: none;
+        }
+        :is(#preview, .help-body) .hl-k { color: #c4a7ff; }
+        :is(#preview, .help-body) .hl-s { color: #a5e3a0; }
+        :is(#preview, .help-body) .hl-c { color: #8b949e; font-style: italic; }
+        :is(#preview, .help-body) .hl-n { color: #ffb86c; }
+        :is(#preview, .help-body) .hl-v { color: #7dd3fc; }
+        :is(#preview, .help-body) .hl-f { color: #82b1ff; }
+        :is(#preview, .help-body) .hl-t { color: #ff9eb1; }
+        :is(#preview, .help-body) .hl-a { color: #fcd34d; }
+        :is(#preview, .help-body) .hl-h { color: #93c5fd; font-weight: 600; }
+        :is(#preview, .help-body) .hl-ins { color: #86efac; background-color: rgba(34, 197, 94, 0.14); }
+        :is(#preview, .help-body) .hl-del { color: #fca5a5; background-color: rgba(239, 68, 68, 0.14); }
         
-        #preview a {
+        :is(#preview, .help-body) a {
             color: #2563eb;
             text-decoration: none;
         }
         
-        #preview a:hover {
+        :is(#preview, .help-body) a:hover {
             text-decoration: underline;
         }
         
-        #preview img {
+        :is(#preview, .help-body) img {
             max-width: 100%;
             height: auto;
             border-radius: 8px;
             margin: 1em 0;
         }
         
-        #preview hr {
+        :is(#preview, .help-body) hr {
             display: block;
             border: none;
             height: 18px;
@@ -520,23 +599,23 @@
             cursor: pointer;
             background: linear-gradient(#d1d5db, #d1d5db) center / 100% 2px no-repeat;
         }
-        #preview hr:hover {
+        :is(#preview, .help-body) hr:hover {
             background-image: linear-gradient(#3b82f6, #3b82f6);
         }
         
-        #preview table {
+        :is(#preview, .help-body) table {
             border-collapse: collapse;
             width: 100%;
             margin: 1em 0;
         }
         
-        #preview th, #preview td {
+        :is(#preview, .help-body) th, :is(#preview, .help-body) td {
             border: 1px solid #e5e7eb;
             padding: 8px 12px;
             text-align: left;
         }
         
-        #preview th {
+        :is(#preview, .help-body) th {
             background-color: #f9fafb;
             font-weight: 600;
         }
@@ -649,6 +728,17 @@
         .modal-btn-submit:hover {
             background: #2563eb;
         }
+
+        .modal-message {
+            font-size: 14px;
+            line-height: 1.5;
+            color: #374151;
+            white-space: pre-line;
+        }
+
+        .modal-btn[hidden] {
+            display: none;
+        }
         
         /* Status Bar */
         .status-bar {
@@ -734,6 +824,86 @@
         .hist-del { color: #b91c1c; background: #fee2e2; padding: 0 3px; border-radius: 3px; margin-right: 4px; }
         .hist-add { color: #166534; background: #dcfce7; padding: 0 3px; border-radius: 3px; }
         .hist-nil { color: #94a3b8; }
+
+        /* Help panel: HELP_MD rendered by Doc.html (HelpOps, src/80-modals.js) */
+        button.download-app-btn { font-family: inherit; cursor: pointer; }
+        .help-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 900;
+            padding: 24px;
+            background: rgba(15, 23, 42, 0.45);
+            align-items: center;
+            justify-content: center;
+        }
+        .help-overlay.active { display: flex; }
+        .help-window {
+            width: min(1100px, 100%);
+            height: min(880px, 100%);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+        }
+        .help-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .help-title { font-weight: 600; font-size: 15px; color: #1e293b; }
+        .help-version { flex: 1; font-size: 12px; color: #64748b; }
+        .help-download {
+            border: 1px solid #2563eb;
+            background: #3b82f6;
+            color: #ffffff;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .help-download:hover { background: #2563eb; }
+        .help-main { flex: 1; display: flex; min-height: 0; }
+        .help-toc {
+            flex: 0 0 230px;
+            overflow-y: auto;
+            padding: 12px 8px;
+            background: #fbfdff;
+            border-right: 1px solid #e2e8f0;
+        }
+        .help-toc-item {
+            display: block;
+            width: 100%;
+            padding: 6px 10px;
+            border: none;
+            border-radius: 6px;
+            background: none;
+            text-align: left;
+            font-size: 13px;
+            color: #334155;
+            cursor: pointer;
+        }
+        .help-toc-item:hover { background: #e0e7ff; color: #1e3a8a; }
+        .help-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px 32px 48px;
+            font-size: 15px;
+            line-height: 1.7;
+            color: #1f2937;
+        }
+        .help-body hr { cursor: default; }
+        @media (max-width: 760px) {
+            .help-overlay { padding: 8px; }
+            .help-toc { display: none; }
+            .help-body { padding: 8px 16px 32px; }
+        }
 
         /* Console/Log Panel (hidden by default) */
         .console-panel {

@@ -12,6 +12,9 @@ const Doc = (() => {
         { mark: "bold", open: "**", close: "**" }
     ];
     const BLOCKS = ["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "quote", "pre", "hr", "table"];
+    /* GitHub callouts: "> [!NOTE]" alone on the first quoted line. */
+    const ALERTS = ["note", "tip", "important", "warning", "caution"];
+    const ALERT_LINE = /^\s*\[!(note|tip|important|warning|caution)\]\s*$/i;
 
     let state = { blocks: [{ type: "p", inlines: [] }] };
     let sel = { from: 0, to: 0 };
@@ -328,7 +331,8 @@ const Doc = (() => {
             case "ol": return (b.items || []).map((it, i) => (i + 1) + ". " + serInlines(it)).join("\n");
             case "quote": {
                 const kids = dropTrailingEmpty((b.blocks || []).slice());
-                const inner = kids.map(serBlock).join("\n\n");
+                let inner = kids.map(serBlock).join("\n\n");
+                if (ALERTS.includes(b.alert)) inner = "[!" + b.alert.toUpperCase() + "]" + (inner ? "\n" + inner : "");
                 return inner.split("\n").map(l => l === "" ? ">" : "> " + l).join("\n");
             }
             case "table": {
@@ -346,7 +350,7 @@ const Doc = (() => {
     function parse(md) {
         if (!md) return empty();
         const fences = [];
-        md = String(md).replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, body) => {
+        md = String(md).replace(/```([\w+#-]*)\n([\s\S]*?)```/g, (_, lang, body) => {
             fences.push({ lang, body: body.replace(/\n$/, "") });
             return "\n\x00FENCE" + (fences.length - 1) + "\x00\n";
         });
@@ -378,7 +382,11 @@ const Doc = (() => {
                     q.push(lines[i].replace(/^>\s?/, ""));
                     i++;
                 }
-                blocks.push({ type: "quote", blocks: parse(q.join("\n")).blocks });
+                const am = q.length ? ALERT_LINE.exec(q[0]) : null;
+                if (am) q.shift();
+                const quote = { type: "quote", blocks: parse(q.join("\n")).blocks };
+                if (am) quote.alert = am[1].toLowerCase();
+                blocks.push(quote);
                 continue;
             }
             if (/^\s*[-*+]\s+/.test(line)) {
@@ -488,13 +496,16 @@ const Doc = (() => {
                     ? "<hr data-from=\"" + from + "\" data-to=\"" + (from + 1) + "\">"
                     : "<hr>";
             case "pre": {
-                const lang = String(b.lang || "").replace(/[^a-zA-Z0-9_-]/g, "");
+                const lang = String(b.lang || "").replace(/[^\w+#-]/g, "");
                 const body = b.text || "";
+                /* Colour spans nest inside the data-from span; the caret map counts text only. */
+                const colored = Highlight.html(body, lang);
                 const inner = mapped
                     ? "<span data-from=\"" + from + "\" data-to=\"" + (from + body.length) + "\">"
-                        + (body ? esc(body) : "<br>") + "</span>"
-                    : esc(body);
-                return "<pre><code class=\"language-" + lang + "\">" + inner + "</code></pre>";
+                        + (body ? colored : "<br>") + "</span>"
+                    : colored;
+                return (lang ? "<pre data-lang=\"" + lang + "\">" : "<pre>")
+                    + "<code class=\"language-" + lang + "\">" + inner + "</code></pre>";
             }
             case "ul":
             case "ol": {
@@ -511,7 +522,14 @@ const Doc = (() => {
                 return html + "</" + tag + ">";
             }
             case "quote": {
-                let pos = from, html = "<blockquote>";
+                /* The preview title is CSS (::before) so it is not editable text.
+                   Export gets a real title element; the classes are GitHub's. */
+                const alert = ALERTS.includes(b.alert) ? b.alert : "";
+                const title = alert ? alert[0].toUpperCase() + alert.slice(1) : "";
+                let pos = from, html = alert
+                    ? "<blockquote class=\"markdown-alert markdown-alert-" + alert + "\" data-alert=\"" + title + "\">"
+                        + (mapped ? "" : "<p class=\"markdown-alert-title\">" + title + "</p>")
+                    : "<blockquote>";
                 (b.blocks || []).forEach((inner, i) => {
                     html += renderBlock(inner, pos, mapped);
                     pos += blockText(inner).length + (i < b.blocks.length - 1 ? 1 : 0);
@@ -949,10 +967,13 @@ const Doc = (() => {
         const before = t.blocks.slice(0, first);
         const lifted = t.blocks.slice(first, last + 1);
         const after = t.blocks.slice(last + 1);
+        /* A callout keeps its title on the part that stays above the lifted lines. */
+        const alert = t.parentBlocks[t.parentIndex].alert;
+        const quoteOf = (blocks, keep) => keep && alert ? { type: "quote", alert, blocks } : { type: "quote", blocks };
         const replacement = [];
-        if (before.length) replacement.push({ type: "quote", blocks: before });
+        if (before.length) replacement.push(quoteOf(before, true));
         replacement.push(...lifted);
-        if (after.length) replacement.push({ type: "quote", blocks: after });
+        if (after.length) replacement.push(quoteOf(after, !before.length));
         t.parentBlocks.splice(t.parentIndex, 1, ...replacement);
         ensureTrail();
     }
@@ -1414,6 +1435,48 @@ const Doc = (() => {
         setSelection(from);
     }
 
+    /* ---- code language and callouts --------------------------------------- */
+    function codeLangAt(pos) {
+        const c = containerAt(pos === undefined ? sel.from : pos);
+        return c.block && c.block.type === "pre" ? String(c.block.lang || "") : null;
+    }
+    function setCodeLang(lang) {
+        const c = containerAt(sel.from);
+        if (!c.block || c.block.type !== "pre") return false;
+        c.block.lang = String(lang || "").replace(/[^\w+#-]/g, "");
+        return true;
+    }
+    function quoteAround(pos) {
+        const c = containerAt(pos);
+        if (c.block && c.block.type === "quote") return c.block;
+        return c.parentBlocks ? c.parentBlocks[c.parentIndex] : null;
+    }
+    /* The innermost quote at pos: its alert, "" for a plain quote, null outside. */
+    function alertAt(pos) {
+        const q = quoteAround(pos === undefined ? sel.from : pos);
+        return q ? (ALERTS.includes(q.alert) ? q.alert : "") : null;
+    }
+    /* "" leaves a plain quote. Outside a quote the selected blocks are quoted
+       first; an empty line becomes an empty callout to type into. */
+    function setAlert(kind) {
+        kind = String(kind || "").toLowerCase();
+        if (kind && !ALERTS.includes(kind)) return false;
+        let q = quoteAround(sel.from);
+        if (!q) {
+            indentQuote();
+            q = quoteAround(sel.from);
+        }
+        if (!q) {
+            const c = containerAt(sel.from);
+            if (!c.block || !isEmptyBlock(c.block)) return false;
+            q = { type: "quote", blocks: [{ type: "p", inlines: [] }] };
+            c.blocks[c.i] = q;
+            ensureTrail();
+        }
+        if (kind) q.alert = kind; else delete q.alert;
+        return true;
+    }
+
     function load(md) {
         state = parse(md);
         ensureTrail();
@@ -1519,6 +1582,8 @@ const Doc = (() => {
         insertRow, deleteRow, insertCol, deleteCol, tableContext,
         insertText, insertInlineMarkdown, paste, splitBlock, deleteBackward, deleteForward, deleteRange,
         marksAt, blockTypeAt, totalLen: () => totalLen(state),
+        codeLangAt, setCodeLang, alertAt, setAlert, ALERTS,
+        text: doc => docText(doc || state),
         ensureTrail, landAtEnd,
         readPreviewSelection, restorePreviewSelection,
         MARK_TAG, TAG_MARK

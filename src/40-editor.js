@@ -237,14 +237,18 @@ const EditorOps = {
                 break;
                 
             case 'quoteIncrease':
+                let misplacedQuote = false;
                 newLines = selectedLines.map(line => {
                     if (/^[^>\s].*>/.test(line)) {
-                        alert('Quotes can only appear at the start of lines. Remove the text before ">" first.');
+                        misplacedQuote = true;
                         return line;
                     }
                     if (/^>+/.test(line)) return '>' + line;
                     return '> ' + line;
                 });
+                if (misplacedQuote) {
+                    Dialog.tell('Quotes can only appear at the start of lines. Remove the text before ">" first.', 'Quote');
+                }
                 break;
                 
             case 'quoteDecrease':
@@ -345,5 +349,94 @@ const EditorOps = {
         const chars = text.length;
         
         DOM.statusRight.textContent = `Lines: ${lines} | Words: ${words} | Characters: ${chars}`;
+    }
+};
+
+// ============================================================================
+// BLOCK STYLE PICKERS — code-block language and callout type. A <select>
+// takes focus, so the preview path uses the selection Doc already holds and
+// the raw path uses the textarea's (kept across blur). Both return focus.
+// ============================================================================
+const BlockStyleOps = {
+    init() {
+        const lang = DOM.codeLangSelect;
+        if (lang) {
+            lang.innerHTML = Highlight.CHOICES
+                .map(([value, label]) => '<option value="' + value + '">' + label + '</option>').join('');
+            lang.addEventListener('change', () => this.setCodeLang(lang.value));
+        }
+        if (DOM.alertSelect) DOM.alertSelect.addEventListener('change', () => this.setAlert(DOM.alertSelect.value));
+    },
+
+    /* lang: string, or null when the caret is not in a fence.
+       alert: kind, "" for a plain quote, or null outside a quote. */
+    reflect(lang, alert) {
+        if (DOM.codeLangSelect) {
+            DOM.codeLangSelect.disabled = lang === null;
+            this.choose(DOM.codeLangSelect, lang || '');
+        }
+        if (DOM.alertSelect) this.choose(DOM.alertSelect, alert === null ? 'none' : alert);
+    },
+
+    /* A fence may name a language the list does not (```sh): show it as is. */
+    choose(select, value) {
+        select.querySelectorAll('option[data-extra]').forEach(o => o.remove());
+        if (![...select.options].some(o => o.value === value)) {
+            const o = document.createElement('option');
+            o.value = value;
+            o.textContent = value;
+            o.setAttribute('data-extra', '');
+            select.appendChild(o);
+        }
+        select.value = value;
+    },
+
+    /* Flush pending typing before the change, or the change is folded into
+       the Typing entry instead of getting its own. */
+    setCodeLang(lang) {
+        History.flush();
+        if (AppState.activePane === 'preview') {
+            if (!Doc.setCodeLang(lang)) return;
+            syncFromDoc('preview');
+            DOM.preview.focus();
+        } else {
+            const ed = DOM.editor;
+            const s = RawBlocks.setFenceLang(ed.value, ed.selectionStart, lang);
+            if (!s) return;
+            this.applyRaw(s);
+        }
+        History.commit('Code language: ' + (lang || 'plain text'));
+    },
+
+    setAlert(kind) {
+        if (kind === 'none') return;
+        History.flush();
+        if (AppState.activePane === 'preview') {
+            if (!Doc.setAlert(kind)) {
+                IconHighlighter.checkPreviewFormats();
+                return;
+            }
+            syncFromDoc('preview');
+            DOM.preview.focus();
+        } else {
+            const ed = DOM.editor;
+            const s = RawBlocks.setAlert(ed.value, ed.selectionStart, ed.selectionEnd, kind);
+            if (!s) {
+                ed.focus();
+                return;
+            }
+            this.applyRaw(s);
+        }
+        History.commit(kind ? 'Callout: ' + kind[0].toUpperCase() + kind.slice(1) : 'Plain quote');
+    },
+
+    applyRaw(s) {
+        const ed = DOM.editor;
+        const a = s.map(ed.selectionStart), b = s.map(ed.selectionEnd);
+        EditorOps.replaceSpan(s.from, s.to, s.insert, a, b);
+        EditorOps.updatePreviewNow();
+        AppState.setModified(true);
+        ed.focus();
+        IconHighlighter.checkEditorFormats();
     }
 };

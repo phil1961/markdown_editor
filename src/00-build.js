@@ -1,8 +1,8 @@
 "use strict";
 
 const BUILD = {
-  version:  "1.3.7",
-  released: "13 September 2026",
+  version:  "1.5.0",
+  released: "14 September 2026",
   compiled: "@@COMPILED@@",
   corrections: [
     ["Raw and preview were two live copies of the note",
@@ -53,6 +53,23 @@ const BUILD = {
     ["Ctrl+S only downloaded a copy; there was no way to write back to the file",
      "In Chrome, Edge and Brave, Open gives the editor a handle to the file and "
      + "Save (Ctrl+S) writes back to it. A new document asks where the first time. "
-     + "Save As (Ctrl+Shift+S) always asks. Other browsers still download."]
+     + "Save As (Ctrl+Shift+S) always asks. Other browsers still download."],
+    ["Embedded in a sandboxed page, dropping a file onto a modified document did nothing",
+     "Confirmations and warnings are in-page dialogs instead of the browser's confirm() "
+     + "and alert(), which sandboxed frames silently ignore. A drop onto either pane asks, "
+     + "then loads, wherever the editor is hosted."],
+    ["A word selected in one pane could not be found in the other",
+     "Find in other pane (the crosshair beside Track) selects the same occurrence in "
+     + "the other pane and scrolls to it. A caret inside a word works too."],
+    ["A code block was plain grey text whatever language it held",
+     "A fence with a language (```shell, ```powershell, ```python, ```diff and more) is coloured "
+     + "in the preview and in exported HTML. The picker beside Code Block sets the language of the block at the caret."],
+    ["There was no way to mark a quote as a note or a warning",
+     "> [!NOTE], [!TIP], [!IMPORTANT], [!WARNING] and [!CAUTION] render as titled, coloured callouts, "
+     + "the markup GitHub uses. The Callout picker beside the quote buttons sets or removes the type."],
+    ["There was no help, and nothing explained how to rebuild the editor from the file alone",
+     "Help (F1, the Help button, or File, Help) opens a guide inside the editor, and Download help (.md) "
+     + "saves it. Its last section tells an AI how to unpack this .html into source, rebuild it, and check "
+     + "it in a headless browser."]
   ]
 };
