@@ -984,6 +984,11 @@ const launchArgs = [
     const lastItalic = await evalJs("document.getElementById('italicBtn').classList.contains('active')");
     ok(lastItalic === true, "Italic lights with the caret inside *it* on the last line");
 
+    G("QC: the debug log names the level and catches uncaught errors");
+    const logged = await evalJs("(() => { const was = Logger.showInConsole; Logger.showInConsole = false; try { Logger.warn('Probe', 'level check'); window.dispatchEvent(new ErrorEvent('error', { message: 'synthetic boom', filename: 'x/probe.js', lineno: 7 })); } finally { Logger.showInConsole = was; } return [...document.querySelectorAll('#consolePanel .log-entry')].slice(-2).map(r => ({ cls: r.className, text: r.textContent })); })()");
+    ok(logged.length === 2 && /\[WARN\] \[Probe\] level check$/.test(logged[0].text) && /warn/.test(logged[0].cls), "a warning line carries its level in the text", JSON.stringify(logged));
+    ok(/\[ERROR\] \[Uncaught\] synthetic boom \(probe\.js:7\)$/.test(logged[1].text) && /error/.test(logged[1].cls), "an uncaught error reaches the panel with file and line", JSON.stringify(logged));
+
     G("QC: Explorer launcher payload loads the file");
     const launched = await evalJs("(() => { const bytes = new TextEncoder().encode('# From Explorer\\n\\nhello from the launcher\\n'); let bin = ''; for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]); window.MD_PAYLOAD = { b64: btoa(bin), filename: 'md-editor-launch-fixture.md' }; const okp = loadFromPayload(); return { okp, raw: document.getElementById('editor').value, h: (document.querySelector('#preview h1')||{}).textContent, name: document.getElementById('fileNameDisplay').textContent }; })()");
     ok(launched.okp === true, "loadFromPayload returns true");
